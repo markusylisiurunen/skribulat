@@ -29,11 +29,13 @@ const MODEL_CONFIG: Record<AllowedModel, ModelConfig> = {
 };
 
 function usage() {
-  console.error(
-    "Usage: skribulat exec [-m <model>] <free-form instruction>\n" +
+  console.log(
+    "Usage: skribulat exec [options] <instruction>\n\n" +
+      "Options:\n" +
+      "  -m, --model <name>   Override the model (aliases: claude, gemini, gpt)\n" +
+      "  -h, --help           Show this help message\n\n" +
       `Allowed models: ${ALLOWED_MODELS.join(", ")}`,
   );
-  Deno.exit(1);
 }
 
 function gatherEnvironmentContext() {
@@ -149,7 +151,14 @@ async function recordCommandInHistory(command: string) {
 
 export async function runExec(argv: string[]) {
   await loadEnv();
-  if (argv.length === 0) usage();
+  if (argv.includes("-h") || argv.includes("--help")) {
+    usage();
+    return;
+  }
+  if (argv.length === 0) {
+    usage();
+    Deno.exit(1);
+  }
 
   let model: AllowedModel = DEFAULT_MODEL;
   const instructionParts: string[] = [];

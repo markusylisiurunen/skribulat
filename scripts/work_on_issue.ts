@@ -30,8 +30,10 @@ const PR_BODY_MODEL = "google/gemini-2.5-flash-preview-09-2025";
 
 function usage() {
   console.log(
-    "Usage: skribulat work-on-issue [--issue <number>]" +
-      "\n\nOptions:\n  --issue <number>   Start working on a specific issue",
+    "Usage: skribulat work-on-issue [options]\n\n" +
+      "Options:\n" +
+      "  --issue <number>   Start working on a specific issue\n" +
+      "  -h, --help         Show this help message",
   );
 }
 

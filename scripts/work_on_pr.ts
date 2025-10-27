@@ -26,7 +26,11 @@ import { preserveGitPatch, startPatchCheckpoint } from "../utils/agent_patch.ts"
 import { SKRIBULAT_PATCHES_SUBDIR, skribulatPath } from "../utils/paths.ts";
 
 function usage() {
-  console.log("Usage: skribulat work-on-pr");
+  console.log(
+    "Usage: skribulat work-on-pr [options]\n\n" +
+      "Options:\n" +
+      "  -h, --help   Show this help message",
+  );
 }
 
 async function choosePullRequest(pullRequests: GitHubPullRequestSummary[]) {

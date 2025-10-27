@@ -22,8 +22,10 @@ import { runAgent } from "../utils/agent_runner.ts";
 
 function usage() {
   console.log(
-    "Usage: skribulat plan-issue [--issue <number>]" +
-      "\n\nOptions:\n  --issue <number>   Analyze a specific issue by number",
+    "Usage: skribulat plan-issue [options]\n\n" +
+      "Options:\n" +
+      "  --issue <number>   Analyze a specific issue by number\n" +
+      "  -h, --help         Show this help message",
   );
 }
 

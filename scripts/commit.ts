@@ -7,6 +7,16 @@ import { runGit } from "../utils/git.ts";
 const GENERATION_MODEL = "google/gemini-2.5-flash-preview-09-2025";
 const DIFF_CHAR_LIMIT = 32_000;
 
+function usage() {
+  console.log(
+    "Usage: skribulat commit [options] [additional guidance]\n\n" +
+      "Options:\n" +
+      "  -A           Stage all changes before generating suggestions\n" +
+      "  codex        Use the configured Codex author for the final commit\n" +
+      "  -h, --help   Show this help message",
+  );
+}
+
 function truncate(text: string, limit: number) {
   if (text.length <= limit) return text;
   return `${text.slice(0, limit)}\n[truncated ${text.length - limit} characters]`;
@@ -191,6 +201,10 @@ export async function runCommit(argv: string[]) {
   await loadEnv();
   const cfg = config();
   const repoPath = cfg.repoRoot;
+  if (argv.includes("-h") || argv.includes("--help")) {
+    usage();
+    return;
+  }
   let useCodexAuthor = false;
   let stageAll = false;
   const extraInstructions: string[] = [];

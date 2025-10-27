@@ -137,16 +137,17 @@ function parseBuildOptions(argv: string[]): BuildOptions {
     console.log(
       `Usage: skribulat build-agent-runner [options]\n\n` +
         `Options:\n` +
-        `  --base-image <image>       Base Docker image (default ${DEFAULT_BASE_IMAGE})\n` +
-        `  --image <name>             Final image tag (default from AGENT_RUNNER_IMAGE env)\n` +
-        `  --node-version <ver>       Node.js version (set --no-node to skip)\n` +
-        `  --go-version <ver>         Go version (set --no-go to skip)\n` +
-        `  --deno-version <ver>       Deno version (empty string for latest, --no-deno to skip)\n` +
-        `  --npm-packages <list>      Comma/semicolon separated global npm modules\n` +
-        `  --apt-packages <list>      Additional apt packages to install\n` +
-        `  --no-node                  Skip Node.js installation\n` +
-        `  --no-go                    Skip Go installation\n` +
-        `  --no-deno                  Skip Deno installation\n`,
+        `  -h, --help              Show this help message\n` +
+        `  --base-image <image>    Base Docker image (default ${DEFAULT_BASE_IMAGE})\n` +
+        `  --image <name>          Final image tag (default from AGENT_RUNNER_IMAGE env)\n` +
+        `  --node-version <ver>    Node.js version (set --no-node to skip)\n` +
+        `  --go-version <ver>      Go version (set --no-go to skip)\n` +
+        `  --deno-version <ver>    Deno version (empty string for latest, --no-deno to skip)\n` +
+        `  --npm-packages <list>   Comma/semicolon separated global npm modules\n` +
+        `  --apt-packages <list>   Additional apt packages to install\n` +
+        `  --no-node               Skip Node.js installation\n` +
+        `  --no-go                 Skip Go installation\n` +
+        `  --no-deno               Skip Deno installation\n`,
     );
     Deno.exit(0);
   }
