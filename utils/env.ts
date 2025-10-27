@@ -36,7 +36,7 @@ export async function loadEnv({ cwd = Deno.cwd(), force = false }: LoadEnvOption
       const envPath = join(dir, fileName);
       try {
         const stat = await Deno.stat(envPath);
-        if (!stat.isFile) continue;
+        if (!stat.isFile && !stat.isFifo) continue;
       } catch {
         continue;
       }
