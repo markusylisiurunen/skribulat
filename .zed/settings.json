@@ -11,7 +11,7 @@
   },
   "languages": {
     "Markdown": {
-      "preferred_line_length": 80,
+      "preferred_line_length": 100,
       "soft_wrap": "bounded"
     },
     "JavaScript": {

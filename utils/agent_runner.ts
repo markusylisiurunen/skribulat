@@ -208,12 +208,13 @@ function logCodexEvent(event: CodexEvent) {
         console.log(prefix(), "agent message:\n" + event.item.text);
       }
       break;
-    case "turn.completed":
+    case "turn.completed": {
       const { input_tokens, cached_input_tokens, output_tokens } = event.usage;
       console.log(prefix(), "usage:");
       console.log(`  input tokens: ${input_tokens} (cached: ${cached_input_tokens})`);
       console.log(`  output tokens: ${output_tokens}`);
       break;
+    }
     default:
       console.log(prefix(), lineToString(event));
       break;

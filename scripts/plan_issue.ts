@@ -70,7 +70,7 @@ function composePrompt(systemInstructions: string, userPrompt: string) {
 
 async function generatePlanViaAgent(
   prompt: string,
-  planConfig: PlanIssueConfig,
+  _planConfig: PlanIssueConfig,
   agentConfig: AgentToolConfig | undefined,
   envConfig: ReturnType<typeof config>,
 ) {
