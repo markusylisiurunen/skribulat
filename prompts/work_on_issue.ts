@@ -1,4 +1,4 @@
-Role and objective:
+const template = `Role and objective:
 - Address the requested changes for GitHub issue #{{ISSUE_NUMBER}} on branch {{BRANCH_NAME}},
   maintaining alignment with AGENTS.md guidance and ensuring codebase integrity.
 
@@ -55,4 +55,6 @@ Issue description:
 </description>
 
 Issue comments (in chronological order):
-{{ISSUE_COMMENTS}}
+{{ISSUE_COMMENTS}}`;
+
+export default template;

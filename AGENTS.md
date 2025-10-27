@@ -15,8 +15,9 @@ support. Treat this document as the single source for setup, guardrails, and exp
   `OPENROUTER_API_KEY`.
 - Codex-powered agents (`plan-issue`, `work-on-issue`, `work-on-pr`) additionally need
   `OPENAI_API_KEY`.
-- Prompt templates sit under `prompts/`. Use `utils/prompts.ts` to render them; avoid inline
-  strings.
+- Prompt templates live in `prompts/*.ts` and export string literals. Always retrieve them via
+  `utils/prompts.ts` so bundling/compilation keeps working; avoid embedding raw prompt text
+  directly.
 
 ## Repository expectations
 

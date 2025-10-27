@@ -1,4 +1,4 @@
-Current time: {{CURRENT_TIME}}
+const template = `Current time: {{CURRENT_TIME}}
 
 You are tasked with working on an open GitHub PR that has received comments. Your goal is to review
 the selected comments, determine the requested changes, and apply those changes to the code base,
@@ -14,7 +14,7 @@ If a selected comment is part of a thread, review the entire thread for full con
 Follow these steps:
 1. Review the PR details, placing special emphasis on the comments selected for you.
 2. Examine the existing changes in the PR.
-   - For example, using `git diff --name-status branch1..branch2`.
+   - For example, using \`git diff --name-status branch1..branch2\`.
 3. Plan what changes you need to implement based on the selected comments.
 4. Apply the necessary changes, including updating AGENTS.md, tests, or docs where required.
 5. Review your work to ensure the changes are focused and fully address the selected comments.
@@ -59,4 +59,6 @@ Pull request comments (written directly to PR):
 {{PR_ISSUE_COMMENTS}}
 
 Pull request review comment threads (written on specific code lines):
-{{PR_REVIEW_COMMENT_THREADS}}
+{{PR_REVIEW_COMMENT_THREADS}}`;
+
+export default template;

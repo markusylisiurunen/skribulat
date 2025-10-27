@@ -1,15 +1,11 @@
-import { join } from "@std/path";
-import { resolveRepoRoot } from "./git.ts";
+import { PROMPT_TEMPLATES } from "../prompts/templates.ts";
 
-const cache = new Map<string, string>();
-
-export async function loadPrompt(name: string): Promise<string> {
-  if (cache.has(name)) return cache.get(name)!;
-  const repoRoot = resolveRepoRoot();
-  const path = join(repoRoot, "prompts", name);
-  const content = await Deno.readTextFile(path);
-  cache.set(name, content);
-  return content;
+export function loadPrompt(name: string): Promise<string> {
+  const template = PROMPT_TEMPLATES[name];
+  if (template === undefined) {
+    throw new Error(`Unknown prompt template: ${name}`);
+  }
+  return Promise.resolve(template);
 }
 
 export function renderPrompt(template: string, variables: Record<string, string>): string {

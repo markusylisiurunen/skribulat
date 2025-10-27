@@ -49,12 +49,9 @@ container.
 You can compile the CLI into an executable that bundles the prompt templates:
 
 ```bash
-deno compile \
-  --allow-all \
-  --include=prompts/**/* \
-  --output=skribulat \
-  main.ts
+deno compile --allow-all --output=skribulat main.ts
 ```
 
 Run the resulting `./skribulat` binary from inside a Git checkout so it can resolve repository
-metadata, read `.skribulat/config.yaml`, and interact with Docker/Git as expected.
+metadata, read `.skribulat/config.yaml`, and interact with Docker/Git as expected. Prompt templates
+are embedded at build time, so no additional assets are required.
