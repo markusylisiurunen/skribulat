@@ -1,0 +1,15 @@
+{
+  "fmt": {
+    "lineWidth": 100
+  },
+  "tasks": {},
+  "imports": {
+    "@inquirer/prompts": "npm:@inquirer/prompts@^7.9.0",
+    "@std/cli": "jsr:@std/cli@^1.0.23",
+    "@std/dotenv": "jsr:@std/dotenv@^0.225.5",
+    "@std/fs": "jsr:@std/fs@^1.0.19",
+    "@std/path": "jsr:@std/path@^1.1.2",
+    "@std/yaml": "jsr:@std/yaml@^1.0.10",
+    "octokit": "npm:octokit@^5.0.4"
+  }
+}
