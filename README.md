@@ -43,3 +43,18 @@ When you run `deno run -A main.ts <command>`, Skribulat loads env files, reads
 `.skribulat/config.yaml`, and executes the script with sensible defaults. Build the agent runner
 image before the first `work-on-*` command to ensure the Codex CLI is available inside the
 container.
+
+### Building a standalone binary
+
+You can compile the CLI into an executable that bundles the prompt templates:
+
+```bash
+deno compile \
+  --allow-all \
+  --include=prompts/**/* \
+  --output=skribulat \
+  main.ts
+```
+
+Run the resulting `./skribulat` binary from inside a Git checkout so it can resolve repository
+metadata, read `.skribulat/config.yaml`, and interact with Docker/Git as expected.

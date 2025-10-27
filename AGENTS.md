@@ -1,5 +1,5 @@
-This repository hosts the Skribulat CLI: a Deno-based toolkit for automating repo workflows with
-LLM support. Treat this document as the single source for setup, guardrails, and expected behaviors.
+This repository hosts the Skribulat CLI: a Deno-based toolkit for automating repo workflows with LLM
+support. Treat this document as the single source for setup, guardrails, and expected behaviors.
 
 ## Current scriptd
 
@@ -15,7 +15,8 @@ LLM support. Treat this document as the single source for setup, guardrails, and
   `OPENROUTER_API_KEY`.
 - Codex-powered agents (`plan-issue`, `work-on-issue`, `work-on-pr`) additionally need
   `OPENAI_API_KEY`.
-- Prompt templates sit under `prompts/`. Use `utils/prompts.ts` to render them; avoid inline strings.
+- Prompt templates sit under `prompts/`. Use `utils/prompts.ts` to render them; avoid inline
+  strings.
 
 ## Repository expectations
 
