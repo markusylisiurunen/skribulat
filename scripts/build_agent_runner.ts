@@ -2,6 +2,7 @@ import { parseArgs } from "@std/cli/parse-args";
 import { loadEnv } from "../utils/env.ts";
 import { config } from "../utils/config.ts";
 import { DockerRunner } from "../utils/docker.ts";
+import { printCliError } from "../utils/errors.ts";
 
 const DEFAULT_BASE_IMAGE = "ubuntu:25.10";
 const DEFAULT_NODE_VERSION = "22.19.0";
@@ -215,7 +216,7 @@ export async function runBuildAgentRunner(argv: string[]) {
 
 if (import.meta.main) {
   await runBuildAgentRunner(Deno.args).catch((error) => {
-    console.error(error instanceof Error ? error.message : String(error));
+    printCliError(error);
     Deno.exit(1);
   });
 }

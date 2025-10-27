@@ -24,6 +24,7 @@ import { runAgent } from "../utils/agent_runner.ts";
 import { runAgentHook } from "../utils/hooks.ts";
 import { preserveGitPatch, startPatchCheckpoint } from "../utils/agent_patch.ts";
 import { SKRIBULAT_PATCHES_SUBDIR, skribulatPath } from "../utils/paths.ts";
+import { CliError, printCliError } from "../utils/errors.ts";
 
 const BRANCH_MODEL = "google/gemini-2.5-flash-preview-09-2025";
 const PR_BODY_MODEL = "google/gemini-2.5-flash-preview-09-2025";
@@ -229,16 +230,15 @@ export async function runWorkOnIssue(argv: string[]) {
   try {
     ({ rest: restArgs, value: issueNumberArg } = readPositiveIntegerFlag(restArgs, "--issue"));
   } catch (error) {
-    console.error(error instanceof Error ? error.message : String(error));
-    Deno.exit(1);
+    const message = error instanceof Error ? error.message : String(error);
+    throw new CliError(message);
   }
   if (restArgs.includes("-h") || restArgs.includes("--help")) {
     usage();
     return;
   }
   if (!cfg.githubToken) {
-    console.error("GITHUB_TOKEN is not set. Provide a GitHub token in the environment.");
-    Deno.exit(1);
+    throw new CliError("GITHUB_TOKEN is not set. Provide a GitHub token in the environment.");
   }
   const github = createGitHubClient(cfg.githubToken);
   const projectConfig = loadProjectConfig();
@@ -370,7 +370,7 @@ export async function runWorkOnIssue(argv: string[]) {
 
 if (import.meta.main) {
   await runWorkOnIssue(Deno.args).catch((error) => {
-    console.error(error instanceof Error ? error.message : String(error));
+    printCliError(error);
     Deno.exit(1);
   });
 }

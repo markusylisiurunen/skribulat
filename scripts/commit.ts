@@ -3,6 +3,7 @@ import { config } from "../utils/config.ts";
 import { generateCompletion } from "../utils/llm.ts";
 import { loadPrompt, renderPrompt } from "../utils/prompts.ts";
 import { runGit } from "../utils/git.ts";
+import { printCliError } from "../utils/errors.ts";
 
 const GENERATION_MODEL = "google/gemini-2.5-flash-preview-09-2025";
 const DIFF_CHAR_LIMIT = 32_000;
@@ -272,7 +273,7 @@ export async function runCommit(argv: string[]) {
 
 if (import.meta.main) {
   runCommit(Deno.args).catch((error) => {
-    console.error(error instanceof Error ? error.message : String(error));
+    printCliError(error);
     Deno.exit(1);
   });
 }

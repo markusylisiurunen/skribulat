@@ -4,6 +4,7 @@ import { runExec } from "./scripts/exec.ts";
 import { runPlanIssue } from "./scripts/plan_issue.ts";
 import { runWorkOnIssue } from "./scripts/work_on_issue.ts";
 import { runWorkOnPr } from "./scripts/work_on_pr.ts";
+import { CliError, printCliError } from "./utils/errors.ts";
 
 type CommandHandler = (args: string[]) => Promise<void> | void;
 
@@ -38,13 +39,19 @@ async function main(args: string[]) {
   }
   const handler = COMMANDS[command];
   if (!handler) {
-    console.error(`Unknown command: ${command}`);
-    printUsage();
-    Deno.exit(1);
+    throw new CliError(`Unknown command: ${command}`);
   }
   await handler(rest);
 }
 
 if (import.meta.main) {
-  await main(Deno.args);
+  try {
+    await main(Deno.args);
+  } catch (error) {
+    printCliError(error);
+    if (error instanceof CliError && error.message.startsWith("Unknown command")) {
+      printUsage();
+    }
+    Deno.exit(1);
+  }
 }

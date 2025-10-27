@@ -19,6 +19,7 @@ import {
   verifyGithubHttps,
 } from "../utils/agent_workspace.ts";
 import { runAgent } from "../utils/agent_runner.ts";
+import { CliError, printCliError } from "../utils/errors.ts";
 
 function usage() {
   console.log(
@@ -123,16 +124,15 @@ export async function runPlanIssue(argv: string[]) {
   try {
     ({ rest: restArgs, value: issueNumberArg } = readPositiveIntegerFlag(restArgs, "--issue"));
   } catch (error) {
-    console.error(error instanceof Error ? error.message : String(error));
-    Deno.exit(1);
+    const message = error instanceof Error ? error.message : String(error);
+    throw new CliError(message);
   }
   if (restArgs.includes("-h") || restArgs.includes("--help")) {
     usage();
     return;
   }
   if (!cfg.githubToken) {
-    console.error("GITHUB_TOKEN is not set. Provide a GitHub token in the environment.");
-    Deno.exit(1);
+    throw new CliError("GITHUB_TOKEN is not set. Provide a GitHub token in the environment.");
   }
   const github = createGitHubClient(cfg.githubToken);
   const projectConfig = loadProjectConfig();
@@ -181,7 +181,7 @@ export async function runPlanIssue(argv: string[]) {
 
 if (import.meta.main) {
   await runPlanIssue(Deno.args).catch((error) => {
-    console.error(error instanceof Error ? error.message : String(error));
+    printCliError(error);
     Deno.exit(1);
   });
 }

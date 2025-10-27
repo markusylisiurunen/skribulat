@@ -24,6 +24,7 @@ import { runAgent } from "../utils/agent_runner.ts";
 import { runAgentHook } from "../utils/hooks.ts";
 import { preserveGitPatch, startPatchCheckpoint } from "../utils/agent_patch.ts";
 import { SKRIBULAT_PATCHES_SUBDIR, skribulatPath } from "../utils/paths.ts";
+import { CliError, printCliError } from "../utils/errors.ts";
 
 function usage() {
   console.log(
@@ -184,8 +185,7 @@ export async function runWorkOnPr(argv: string[]) {
     return;
   }
   if (!cfg.githubToken) {
-    console.error("GITHUB_TOKEN is not set. Provide a GitHub token in the environment.");
-    Deno.exit(1);
+    throw new CliError("GITHUB_TOKEN is not set. Provide a GitHub token in the environment.");
   }
   const github = createGitHubClient(cfg.githubToken);
   const projectConfig = loadProjectConfig();
@@ -310,7 +310,7 @@ export async function runWorkOnPr(argv: string[]) {
 
 if (import.meta.main) {
   await runWorkOnPr(Deno.args).catch((error) => {
-    console.error(error instanceof Error ? error.message : String(error));
+    printCliError(error);
     Deno.exit(1);
   });
 }

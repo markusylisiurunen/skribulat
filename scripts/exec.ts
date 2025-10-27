@@ -2,6 +2,7 @@ import { join } from "@std/path";
 import { loadEnv } from "../utils/env.ts";
 import { generateCompletion } from "../utils/llm.ts";
 import { loadPrompt, renderPrompt } from "../utils/prompts.ts";
+import { CliError, printCliError } from "../utils/errors.ts";
 
 const ALLOWED_MODELS = [
   "anthropic/claude-sonnet-4.5",
@@ -171,8 +172,9 @@ export async function runExec(argv: string[]) {
       if (!ALLOWED_MODELS.includes(resolvedModel as AllowedModel)) {
         const allowed = ALLOWED_MODELS.join(", ");
         const aliases = Object.keys(MODEL_ALIASES).join(", ");
-        console.error(`Invalid model "${next}". Allowed values: ${allowed} or aliases: ${aliases}`);
-        Deno.exit(1);
+        throw new CliError(
+          `Invalid model "${next}". Allowed values: ${allowed} or aliases: ${aliases}`,
+        );
       }
       model = resolvedModel as AllowedModel;
       continue;
@@ -181,12 +183,17 @@ export async function runExec(argv: string[]) {
   }
 
   const instruction = instructionParts.join(" ").trim();
-  if (instruction.length === 0) usage();
+  if (instruction.length === 0) {
+    usage();
+    throw new CliError("Instruction is required.");
+  }
 
   const proposed = await proposeCommand(instruction, model);
   const singleLine = proposed.replace(/\s+/g, " ").trim();
   if (singleLine.includes("`") || singleLine.includes("\n")) {
-    throw new Error("LLM response must be a single-line command without markdown code fences.");
+    throw new CliError(
+      "LLM response must be a single-line command without markdown code fences.",
+    );
   }
   console.log(`Proposed command (${model}):\n`);
   console.log(`  ${singleLine}\n`);
@@ -197,17 +204,20 @@ export async function runExec(argv: string[]) {
   }
   const finalCommand = confirmPrompt.trim().length > 0 ? confirmPrompt.trim() : singleLine;
   if (finalCommand.includes("\n")) {
-    throw new Error("Only single-line commands are supported.");
+    throw new CliError("Only single-line commands are supported.");
   }
   try {
     await recordCommandInHistory(finalCommand);
     await executeShellCommand(finalCommand);
   } catch (error) {
-    console.error(`Command failed: ${error instanceof Error ? error.message : String(error)}`);
-    Deno.exit(1);
+    const message = error instanceof Error ? error.message : String(error);
+    throw new CliError(`Command failed: ${message}`);
   }
 }
 
 if (import.meta.main) {
-  await runExec(Deno.args);
+  await runExec(Deno.args).catch((error) => {
+    printCliError(error);
+    Deno.exit(1);
+  });
 }
