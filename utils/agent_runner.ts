@@ -57,6 +57,7 @@ async function runCodexAgent(
   const promptPath = "/tmp/skribulat-plan-prompt.txt";
   await copyPromptToContainer(prompt, runner, promptPath);
   const command = buildCodexCommand(config, promptPath);
+  console.log(`${prefix()} user prompt:\n${prompt}`);
   return await streamCodexOutput(runner, command, workingDir);
 }
 
@@ -176,6 +177,10 @@ function logCodexEvent(event: CodexEvent) {
     case "thread.started":
       console.log(prefix(), "thread started:", event.thread_id);
       break;
+    case "turn.started":
+      break;
+    case "item.started":
+      break;
     case "item.updated":
       console.log(prefix(), "plan updated:");
       for (const item of event.item.items) {
@@ -188,7 +193,14 @@ function logCodexEvent(event: CodexEvent) {
       }
       if (event.item.type === "command_execution") {
         const status = event.item.exit_code === 0 ? "succeeded" : "failed";
-        console.log(prefix(), `command ${status}: ${event.item.command}`);
+        if (status === "failed") {
+          console.log(
+            prefix(),
+            `command failed (exit code ${event.item.exit_code}): ${event.item.command}`,
+          );
+        } else {
+          console.log(prefix(), `command succeeded: ${event.item.command}`);
+        }
         if (event.item.exit_code !== 0) {
           console.log(event.item.aggregated_output);
         }
@@ -213,10 +225,19 @@ function logCodexEvent(event: CodexEvent) {
       console.log(prefix(), "usage:");
       console.log(`  input tokens: ${input_tokens} (cached: ${cached_input_tokens})`);
       console.log(`  output tokens: ${output_tokens}`);
+      // TODO: these are hardcoded for gpt-5-codex; make configurable
+      const per1MInputTokens = 1.25;
+      const per1MCachedInputTokens = 0.125;
+      const per1MOutputTokens = 10.0;
+      const estimatedCost = ((input_tokens - cached_input_tokens) / 1_000_000) *
+          per1MInputTokens +
+        (cached_input_tokens / 1_000_000) * per1MCachedInputTokens +
+        (output_tokens / 1_000_000) * per1MOutputTokens;
+      console.log(`  estimated cost: $${estimatedCost.toFixed(6)}`);
       break;
     }
     default:
-      console.log(prefix(), lineToString(event));
+      console.log(lineToString(event));
       break;
   }
 }
