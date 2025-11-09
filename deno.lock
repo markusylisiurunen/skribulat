@@ -11,7 +11,8 @@
     "jsr:@std/path@^1.1.2": "1.1.2",
     "jsr:@std/yaml@^1.0.10": "1.0.10",
     "npm:@inquirer/prompts@^7.9.0": "7.9.0",
-    "npm:octokit@^5.0.4": "5.0.4_@octokit+core@7.0.5"
+    "npm:octokit@^5.0.4": "5.0.4_@octokit+core@7.0.5",
+    "npm:tokenx@^1.2.0": "1.2.0"
   },
   "jsr": {
     "@std/cli@1.0.23": {
@@ -452,6 +453,9 @@
     "toad-cache@3.7.0": {
       "integrity": "sha512-/m8M+2BJUpoJdgAHoG+baCwBT+tf2VraSfkBgl0Y00qIWt41DJ8R5B8nsEw0I58YwF5IZH6z24/2TobDKnqSWw=="
     },
+    "tokenx@1.2.0": {
+      "integrity": "sha512-x4bRrL23b22H+EqW2pbhIkkt3ouj27ZGmAS1QoIqpocEO4m0sAl2H1M4L1UzKqleikY4U9lz/TbEw4jeG8tm2A=="
+    },
     "universal-github-app-jwt@2.2.2": {
       "integrity": "sha512-dcmbeSrOdTnsjGjUfAlqNDJrhxXizjAz94ija9Qw8YkZ1uu0d+GoZzyH+Jb9tIIqvGsadUfwg+22k5aDqqwzbw=="
     },
@@ -478,7 +482,8 @@
       "jsr:@std/path@^1.1.2",
       "jsr:@std/yaml@^1.0.10",
       "npm:@inquirer/prompts@^7.9.0",
-      "npm:octokit@^5.0.4"
+      "npm:octokit@^5.0.4",
+      "npm:tokenx@^1.2.0"
     ]
   }
 }

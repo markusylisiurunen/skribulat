@@ -1,6 +1,7 @@
 import { runBuildAgentRunner } from "./scripts/build_agent_runner.ts";
 import { runCommit } from "./scripts/commit.ts";
 import { runExec } from "./scripts/exec.ts";
+import { runMarkdownCodebase } from "./scripts/markdown_codebase.ts";
 import { runPlanIssue } from "./scripts/plan_issue.ts";
 import { runWorkOnIssue } from "./scripts/work_on_issue.ts";
 import { runWorkOnPr } from "./scripts/work_on_pr.ts";
@@ -12,6 +13,7 @@ const COMMANDS: Record<string, CommandHandler> = {
   "build-agent-runner": runBuildAgentRunner,
   "commit": runCommit,
   "exec": runExec,
+  "markdown-codebase": runMarkdownCodebase,
   "plan-issue": runPlanIssue,
   "work-on-issue": runWorkOnIssue,
   "work-on-pr": runWorkOnPr,
@@ -24,6 +26,7 @@ function printUsage() {
       `  build-agent-runner  Build a Docker image for running local agents.\n` +
       `  commit              Generate and apply AI-assisted commit messages.\n` +
       `  exec                Propose and optionally run an AI-generated shell command.\n` +
+      `  markdown-codebase   Emit a markdown snapshot of the tracked files under the current directory.\n` +
       `  plan-issue          Analyze an issue and post an implementation plan.\n` +
       `  work-on-issue       Spin up an agent to implement an issue branch and PR.\n` +
       `  work-on-pr          Address feedback on an existing pull request via agent.\n` +

@@ -1,31 +1,52 @@
-This repository hosts the Skribulat CLI: a Deno-based toolkit for automating repo workflows with LLM
-support. Treat this document as the single source for setup, guardrails, and expected behaviors.
+This repository hosts the Skribulat CLI: a Deno-based toolkit for automating repo workflows with LLM support via OpenRouter and OpenAI Codex agents.
 
-## Current scriptd
+## Scripts
 
-- `commit`: summarizes staged diffs and proposes git commit subjects.
-- `exec`: turns a free-form instruction into a single-line shell command, confirms before running.
-- `plan-issue`: analyzes a GitHub issue (plus comments) and posts an implementation plan.
-- `work-on-issue`: provisions a Docker runner and drives Codex to implement an issue end-to-end.
-- `work-on-pr`: applies requested changes on an existing pull request branch via Codex.
+All scripts live under the `scripts` folder (e.g., `scripts/commit.ts`).
 
-## Model & prompt defaults
+- `build_agent_runner.ts`: Builds the Docker image used by Codex agents. Installs Ubuntu base with Node.js, Go, Deno, apt packages (git, ripgrep, fd-find, jq, etc.), and npm globals (defaults to `@openai/codex`). Supports `--base-image`, `--node-version`, `--go-version`, `--deno-version`, `--npm-packages`, `--apt-packages`, `--no-node`, `--no-go`, `--no-deno` flags. Reads `AGENT_RUNNER_*` env vars. Final image tagged via `--image` or `AGENT_RUNNER_IMAGE`.
+- `commit.ts`: Generates three AI-powered commit subject proposals from staged changes using OpenRouter (defaults to `google/gemini-2.5-flash-preview-09-2025`). Collects staged diff + optional branch diff (vs default branch) as context. Supports `-A` to stage all changes first, `codex` flag to commit with Codex agent author credentials, and free-form additional guidance appended to prompt. Prompts user to select or edit before committing. Subject validation: single line, ≤90 chars, imperative mood, lowercase unless proper nouns, no scope prefixes or trailing punctuation.
+- `exec.ts`: Translates natural language instructions into executable shell commands. Supports `--model` (aliases: claude, gemini, gpt) to select model (defaults to `anthropic/claude-sonnet-4.5`). Gathers environment context (OS, shell, cwd, HOME). Generates single-line command proposal, prompts for confirmation (editable). Executes via user's `$SHELL` (zsh only supported). Records command to zsh history (`$HISTFILE` or `~/.zsh_history`).
+- `markdown_codebase.ts`: Emits markdown snapshot of git-tracked files under current directory. Runs `git ls-files` from repo root, filters to files within cwd (excludes `..` paths), converts paths to POSIX format. Supports `-i`/`--include` and `-e`/`--exclude` regex filters (repeatable). Default output: directory structure section (grouped by directory) + file contents section (each file wrapped in `<file path="...">` tags). With `--stats` flag: prints lines and estimated token count per file (via `tokenx` library), plus total token estimate. Useful for preparing codebase context for LLM prompts or assessing context window requirements.
+- `plan_issue.ts`: Analyzes GitHub issues and posts comprehensive implementation plans. Supports `--issue <number>` or interactive selection. Runs Codex agent with structured prompt including issue metadata, all comments (paginated), and relevant AGENTS.md guidance (discovered via label→directory mapping from `.skribulat/config.yaml`). Agent explores codebase and returns markdown plan with sections: summary, background, implementation steps, relevant files, open questions. Posts result as issue comment.
+- `work_on_issue.ts`: End-to-end issue implementation via Codex agent. Supports `--issue <number>`. Generates kebab-case branch name from issue metadata (LLM-powered, max 50 chars, a-z/0-9/hyphens only). Fetches/creates branch. Clones repo into isolated Docker workspace at `/root/agent`. Runs pre-work hook. Agent implements changes, commits, pushes. Generates PR body from issue context + diff. Creates pull request against default branch. Preserves git patches to `.skribulat/patches/` with periodic checkpointing (every 30s during agent run).
+- `work_on_pr.ts`: Addresses PR review feedback via agent. Interactive selection of PR, then checkbox selection of specific issue comments and review comment threads to focus on. Fetches associated issues (via `closingIssuesReferences`). Checks out PR branch in Docker workspace. Runs pre-work hook. Agent applies requested changes, commits, pushes. Preserves patches.
 
-- All text generation flows through OpenRouter models (see `utils/llm.ts`). Required API key:
-  `OPENROUTER_API_KEY`.
-- Codex-powered agents (`plan-issue`, `work-on-issue`, `work-on-pr`) additionally need
-  `OPENAI_API_KEY`.
-- Prompt templates live in `prompts/*.ts` and export string literals. Always retrieve them via
-  `utils/prompts.ts` so bundling/compilation keeps working; avoid embedding raw prompt text
-  directly.
+## Utility files
 
-## Repository expectations
+All utility files live under the `utils` folder.
 
+- `agent_patch.ts`: Captures and preserves git diffs from agent runs for audit and rollback. Supports periodic checkpointing during execution (default 30s intervals).
+- `agent_runner.ts`: Orchestrates agent execution with two modes: Codex (OpenAI CLI) or shell (custom command). Handles authentication, streams execution progress, returns final agent output.
+- `agent_workspace.ts`: Prepares isolated git workspace in Docker for agent runs. Clones repo to `/root/agent`, configures git credentials for HTTPS operations, validates GitHub authentication.
+- `config.ts`: Central configuration loader for repo metadata and environment variables. Auto-detects repo root, GitHub owner/repo, default branch. Reads required env vars and caches results.
+- `docker.ts`: Docker container lifecycle management with automatic cleanup on exit/signals. Provides command execution, file copying, container committing, and streaming output.
+- `env.ts`: Hierarchical .env file loading from repo root down to cwd. Handles both `.env` and `.env.secret` files, skipping already-loaded paths.
+- `errors.ts`: CLI error handling with `CliError` class and `AggregateError` formatting support.
+- `flags.ts`: CLI flag parsing utilities supporting `--flag=value` and `--flag value` syntaxes. Includes integer validation helpers.
+- `git.ts`: Git command wrappers (sync/async). Resolves repo root, parses GitHub remotes from various URL formats, determines default branch.
+- `github.ts`: GitHub API client wrapping Octokit. Handles issues, PRs, comments (both issue and review threads), and associated issue fetching via GraphQL.
+- `guidance.ts`: Discovers and formats AGENTS.md files based on issue label→directory mappings from config. Returns XML-wrapped content for prompt injection. Provides overrideable prompt guidance helpers.
+- `hooks.ts`: Executes bash hooks from `.skribulat/hooks/` directory with streaming output. Currently supports `pre-work.sh` before agent execution.
+- `llm.ts`: OpenRouter API client for LLM completions. Supports reasoning configuration (effort levels or max tokens). Requires `OPENROUTER_API_KEY`.
+- `paths.ts`: Path constants and helper functions for `.skribulat/` directory structure (config, hooks, patches subdirectories).
+- `process.ts`: Generic command execution wrapper returning stdout/stderr/exit code with optional failure tolerance.
+- `project_config.ts`: Parses `.skribulat/config.yaml` for agent tool configuration and workflow settings. Supports hierarchical overrides per command (`plan_issue`, `work_on_issue`, `work_on_pr`). Normalizes label mappings to lowercase.
+- `prompts.ts`: Loads embedded prompt templates (compiled into binary) and renders them with `{{VARIABLE}}` substitution (case-insensitive).
+- `template.ts`: Generic template rendering utility (currently unused; `prompts.ts` is the active implementation).
+- `text.ts`: Terminal text formatting utilities (console width truncation).
+
+## Prompt templates
+
+The `prompts/` folder contains LLM prompt templates embedded into the compiled binary. Templates use `{{VARIABLE}}` placeholder syntax and are loaded via `utils/prompts.ts`. Most commands use paired system/user prompts (e.g., `commit_subject_system.ts` + `commit_subject_user.ts`). The `templates.ts` file exports all prompts as a centralized map for compilation.
+
+## How to work
+
+- Do not write tests or documentation unless explicitly asked.
 - Keep code formatted and linted:
   ```bash
-  deno fmt --check
+  deno fmt
   deno lint
+  deno check main.ts
   ```
-- Automated CI lives in `.github/workflows/deno.yml` and executes the same checks.
-
-_Extend this guide when adding new scripts, changing guardrails, or updating required tooling._
+- Make sure this file stays up to date with changes made in the codebase.
