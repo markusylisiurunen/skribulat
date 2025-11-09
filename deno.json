@@ -10,7 +10,7 @@
     "@std/fs": "jsr:@std/fs@^1.0.19",
     "@std/path": "jsr:@std/path@^1.1.2",
     "@std/yaml": "jsr:@std/yaml@^1.0.10",
-    "octokit": "npm:octokit@^5.0.4",
+    "octokit": "npm:octokit@^5.0.5",
     "tokenx": "npm:tokenx@^1.2.0"
   }
 }
