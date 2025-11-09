@@ -11,7 +11,7 @@ import {
   formatAgentsGuidance,
   instructEfficientToolUse,
 } from "../utils/guidance.ts";
-import { readPositiveIntegerFlag } from "../utils/flags.ts";
+import { readFlag, readPositiveIntegerFlag } from "../utils/flags.ts";
 import { AgentToolConfig, loadProjectConfig } from "../utils/project_config.ts";
 import { DockerRunner } from "../utils/docker.ts";
 import {
@@ -34,6 +34,8 @@ function usage() {
     "Usage: skribulat work-on-issue [options]\n\n" +
       "Options:\n" +
       "  --issue <number>   Start working on a specific issue\n" +
+      "  --agent <tool>     Agent tool to use (codex, claude-code, shell)\n" +
+      "  --model <name>     Model name (e.g., gpt-5-codex, sonnet, haiku)\n" +
       "  -h, --help         Show this help message",
   );
 }
@@ -218,8 +220,20 @@ Your full response will be used as-is for the PR body.
 
 function resolveAgentConfig(
   projectConfig: ReturnType<typeof loadProjectConfig>,
-): AgentToolConfig | undefined {
-  return projectConfig.workOnIssue?.agent ?? projectConfig.agent;
+  cliOverrides?: { agent?: string; model?: string },
+): AgentToolConfig {
+  const base = projectConfig.workOnIssue?.agent ?? projectConfig.agent ?? {};
+  const config: AgentToolConfig = { ...base };
+  if (cliOverrides?.agent) {
+    const tool = cliOverrides.agent.toLowerCase();
+    if (tool === "codex" || tool === "claude-code" || tool === "shell") {
+      config.tool = tool;
+    }
+  }
+  if (cliOverrides?.model) {
+    config.model = cliOverrides.model;
+  }
+  return config;
 }
 
 export async function runWorkOnIssue(argv: string[]) {
@@ -227,8 +241,12 @@ export async function runWorkOnIssue(argv: string[]) {
   const cfg = config();
   let restArgs = argv;
   let issueNumberArg: number | undefined;
+  let agentArg: string | undefined;
+  let modelArg: string | undefined;
   try {
     ({ rest: restArgs, value: issueNumberArg } = readPositiveIntegerFlag(restArgs, "--issue"));
+    ({ rest: restArgs, value: agentArg } = readFlag(restArgs, "--agent"));
+    ({ rest: restArgs, value: modelArg } = readFlag(restArgs, "--model"));
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     throw new CliError(message);
@@ -279,7 +297,10 @@ export async function runWorkOnIssue(argv: string[]) {
     "{{ISSUE_BODY}}": issue.body.trim().length > 0 ? issue.body.trim() : "No description.",
     "{{ISSUE_COMMENTS}}": issueCommentsBlock,
   });
-  const agentConfig = resolveAgentConfig(projectConfig);
+  const agentConfig = resolveAgentConfig(projectConfig, {
+    agent: agentArg,
+    model: modelArg,
+  });
   const githubUsername = Deno.env.get("GITHUB_USERNAME") ?? cfg.githubOwner;
   const runnerEnv: Record<string, string> = {
     DEBIAN_FRONTEND: "noninteractive",
@@ -320,6 +341,7 @@ export async function runWorkOnIssue(argv: string[]) {
       hostTargetPath: patchOutputPath,
     });
     await runAgent({
+      anthropicApiKey: cfg.anthropicApiKey,
       openAIApiKey: cfg.openAIApiKey,
       prompt: fullPrompt,
       runner,

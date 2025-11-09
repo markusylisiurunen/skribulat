@@ -12,6 +12,7 @@ import {
 import { fitInConsoleWidth } from "../utils/text.ts";
 import { loadPrompt, renderPrompt } from "../utils/prompts.ts";
 import { explainIssueLabels, formatAgentsGuidance } from "../utils/guidance.ts";
+import { readFlag } from "../utils/flags.ts";
 import { AgentToolConfig, loadProjectConfig } from "../utils/project_config.ts";
 import { DockerRunner } from "../utils/docker.ts";
 import {
@@ -30,7 +31,9 @@ function usage() {
   console.log(
     "Usage: skribulat work-on-pr [options]\n\n" +
       "Options:\n" +
-      "  -h, --help   Show this help message",
+      "  --agent <tool>     Agent tool to use (codex, claude-code, shell)\n" +
+      "  --model <name>     Model name (e.g., gpt-5-codex, sonnet, haiku)\n" +
+      "  -h, --help         Show this help message",
   );
 }
 
@@ -173,14 +176,31 @@ function renderReviewThreads(threads: ReviewThread[]) {
 
 function resolveAgentConfig(
   projectConfig: ReturnType<typeof loadProjectConfig>,
-): AgentToolConfig | undefined {
-  return projectConfig.workOnPr?.agent ?? projectConfig.agent;
+  cliOverrides?: { agent?: string; model?: string },
+): AgentToolConfig {
+  const base = projectConfig.workOnPr?.agent ?? projectConfig.agent ?? {};
+  const config: AgentToolConfig = { ...base };
+  if (cliOverrides?.agent) {
+    const tool = cliOverrides.agent.toLowerCase();
+    if (tool === "codex" || tool === "claude-code" || tool === "shell") {
+      config.tool = tool;
+    }
+  }
+  if (cliOverrides?.model) {
+    config.model = cliOverrides.model;
+  }
+  return config;
 }
 
 export async function runWorkOnPr(argv: string[]) {
   await loadEnv();
   const cfg = config();
-  if (argv.includes("-h") || argv.includes("--help")) {
+  let restArgs = argv;
+  let agentArg: string | undefined;
+  let modelArg: string | undefined;
+  ({ rest: restArgs, value: agentArg } = readFlag(restArgs, "--agent"));
+  ({ rest: restArgs, value: modelArg } = readFlag(restArgs, "--model"));
+  if (restArgs.includes("-h") || restArgs.includes("--help")) {
     usage();
     return;
   }
@@ -227,7 +247,10 @@ export async function runWorkOnPr(argv: string[]) {
     "{{PR_ISSUE_COMMENTS}}": renderIssueComments(issueComments),
     "{{PR_REVIEW_COMMENT_THREADS}}": renderReviewThreads(threadReviewComments(reviewComments)),
   });
-  const agentConfig = resolveAgentConfig(projectConfig);
+  const agentConfig = resolveAgentConfig(projectConfig, {
+    agent: agentArg,
+    model: modelArg,
+  });
   const githubUsername = Deno.env.get("GITHUB_USERNAME") ?? cfg.githubOwner;
   const runnerEnv: Record<string, string> = {
     DEBIAN_FRONTEND: "noninteractive",
@@ -276,6 +299,7 @@ export async function runWorkOnPr(argv: string[]) {
       hostTargetPath: patchOutputPath,
     });
     await runAgent({
+      anthropicApiKey: cfg.anthropicApiKey,
       openAIApiKey: cfg.openAIApiKey,
       prompt,
       runner,

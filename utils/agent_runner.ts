@@ -2,6 +2,7 @@ import { DockerRunner } from "./docker.ts";
 import { AgentToolConfig } from "./project_config.ts";
 
 export type AgentExecutionContext = {
+  anthropicApiKey?: string;
   openAIApiKey?: string;
   prompt: string;
   runner: DockerRunner;
@@ -16,6 +17,8 @@ export async function runAgent(
   switch (tool) {
     case "codex":
       return await runCodexAgent(context, config);
+    case "claude-code":
+      return await runClaudeCodeAgent(context, config);
     case "shell":
       return await runShellAgent(context, config);
     default:
@@ -40,6 +43,20 @@ async function runShellAgent(
   return stdout.trim();
 }
 
+async function runClaudeCodeAgent(
+  { anthropicApiKey, prompt, runner, workingDir }: AgentExecutionContext,
+  config: AgentToolConfig,
+): Promise<string> {
+  if (!anthropicApiKey) {
+    throw new Error("ANTHROPIC_API_KEY is required for Claude Code agent.");
+  }
+  const promptPath = "/tmp/skribulat-plan-prompt.txt";
+  await copyPromptToContainer(prompt, runner, promptPath);
+  const command = buildClaudeCodeCommand(config, promptPath);
+  console.log(`${prefix()} user prompt:\n${prompt}`);
+  return await streamClaudeCodeOutput(runner, command, workingDir, anthropicApiKey);
+}
+
 async function runCodexAgent(
   { openAIApiKey, prompt, runner, workingDir }: AgentExecutionContext,
   config: AgentToolConfig,
@@ -59,6 +76,18 @@ async function runCodexAgent(
   const command = buildCodexCommand(config, promptPath);
   console.log(`${prefix()} user prompt:\n${prompt}`);
   return await streamCodexOutput(runner, command, workingDir);
+}
+
+function buildClaudeCodeCommand(config: AgentToolConfig, promptPath: string): string {
+  const model = config.model ?? "sonnet";
+  const base = config.command && config.command.trim().length > 0 ? config.command.trim() : [
+    "claude -p",
+    "--dangerously-skip-permissions",
+    `--model ${model}`,
+    "--output-format stream-json",
+    `"$(cat ${promptPath})"`,
+  ].join(" ");
+  return base;
 }
 
 function buildCodexCommand(config: AgentToolConfig, promptPath: string): string {
@@ -244,6 +273,98 @@ function logCodexEvent(event: CodexEvent) {
 
 function prefix() {
   return `[${new Date().toTimeString().slice(0, 8)}]`;
+}
+
+type ClaudeCodeEvent =
+  | { type: "system"; subtype: string }
+  | {
+    type: "assistant";
+    message: {
+      content: Array<
+        | { type: "text"; text: string }
+        | { type: "tool_use"; name: string; input: Record<string, unknown> }
+      >;
+    };
+  }
+  | { type: "user"; message: Record<string, unknown> }
+  | { type: "result"; subtype: string; result?: string; is_error: boolean };
+
+async function streamClaudeCodeOutput(
+  runner: DockerRunner,
+  command: string,
+  workingDir: string,
+  apiKey: string,
+): Promise<string> {
+  console.log(`Running Claude Code agent with command: ${command}`);
+  const envCommand = `ANTHROPIC_API_KEY="${apiKey}" ${command}`;
+  const stream = runner.streamBashCommand(envCommand, { cwd: workingDir });
+  let finalMessage = "";
+  let buffered = "";
+  for await (const chunk of stream) {
+    buffered += chunk.data;
+    const lines = buffered.split("\n");
+    buffered = lines.pop() ?? "";
+    for (const line of lines) {
+      const result = processClaudeCodeLine(line);
+      if (result) finalMessage = result;
+    }
+  }
+  if (buffered.trim().length > 0) {
+    const result = processClaudeCodeLine(buffered);
+    if (result) finalMessage = result;
+  }
+  if (finalMessage.trim().length === 0) {
+    throw new Error("Claude Code agent did not return a final message.");
+  }
+  return finalMessage.trim();
+}
+
+function processClaudeCodeLine(line: string): string | null {
+  if (line.trim().length === 0) return null;
+  try {
+    const parsed = JSON.parse(line) as ClaudeCodeEvent;
+    logClaudeCodeEvent(parsed);
+    if (parsed.type === "result" && !parsed.is_error && parsed.result) {
+      return parsed.result;
+    }
+    return null;
+  } catch {
+    console.log(line);
+    return null;
+  }
+}
+
+function logClaudeCodeEvent(event: ClaudeCodeEvent) {
+  switch (event.type) {
+    case "system":
+      console.log(prefix(), `system event: ${event.subtype}`);
+      break;
+    case "assistant": {
+      for (const content of event.message.content) {
+        if (content.type === "text") {
+          console.log(
+            prefix(),
+            `assistant: ${content.text.substring(0, 100)}${content.text.length > 100 ? "..." : ""}`,
+          );
+        } else if (content.type === "tool_use") {
+          console.log(prefix(), `tool used: ${content.name}`);
+        }
+      }
+      break;
+    }
+    case "user":
+      break;
+    case "result":
+      if (event.is_error) {
+        console.log(prefix(), "execution failed");
+      } else {
+        console.log(prefix(), "execution completed");
+      }
+      break;
+    default:
+      console.log(lineToString(event));
+      break;
+  }
 }
 
 function lineToString(value: unknown) {
