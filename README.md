@@ -22,6 +22,8 @@ Skribulat is a Deno-based command-line toolkit for AI-assisted repo workflows.
   it.
 - `markdown-codebase` – render git-tracked files (with optional include/exclude filters) as Markdown
   or emit stats.
+- `ask-codebase` – capture the same filtered snapshot and forward it, along with your question, to
+  an OpenRouter model (no snapshot is echoed to stdout).
 - `plan-issue` – post a structured implementation plan for a GitHub issue.
 - `work-on-issue` – spin up an agent (Codex, Claude Code, or shell) to implement a selected issue
   end-to-end. Supports `--agent` and `--model` flags.

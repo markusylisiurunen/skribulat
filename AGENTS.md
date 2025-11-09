@@ -30,6 +30,10 @@ All scripts live under the `scripts` folder (e.g., `scripts/commit.ts`).
   file wrapped in `<file path="...">` tags). With `--stats` flag: prints lines and estimated token
   count per file (via `tokenx` library), plus total token estimate. Useful for preparing codebase
   context for LLM prompts or assessing context window requirements.
+- `ask_codebase.ts`: Builds the same filtered snapshot as `markdown_codebase.ts`, but instead of
+  printing it, routes the directory structure + `<file>` blocks to an OpenRouter model along with a
+  required question/prompt. Supports the same include/exclude regex flags plus `--model` and
+  `--question`. Never echoes the snapshot or prompt to stdout—only the model's response.
 - `plan_issue.ts`: Analyzes GitHub issues and posts comprehensive implementation plans. Supports
   `--issue <number>` or interactive selection. Runs Codex agent with structured prompt including
   issue metadata, all comments (paginated), and relevant AGENTS.md guidance (discovered via
