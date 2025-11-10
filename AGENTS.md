@@ -32,8 +32,9 @@ All scripts live under the `scripts` folder (e.g., `scripts/commit.ts`).
   context for LLM prompts or assessing context window requirements.
 - `ask_codebase.ts`: Builds the same filtered snapshot as `markdown_codebase.ts`, but instead of
   printing it, routes the directory structure + `<file>` blocks to an OpenRouter model along with a
-  required question/prompt. Supports the same include/exclude regex flags plus `--model` and
-  `--question`. Never echoes the snapshot or prompt to stdout—only the model's response.
+  required question/prompt. Supports the same include/exclude regex flags plus `--model`,
+  `--question`, and `--dry-run` (lists matching files with line counts instead of querying). Never
+  echoes the snapshot or prompt to stdout—only the model's response.
 - `plan_issue.ts`: Analyzes GitHub issues and posts comprehensive implementation plans. Supports
   `--issue <number>` or interactive selection. Runs Codex agent with structured prompt including
   issue metadata, all comments (paginated), and relevant AGENTS.md guidance (discovered via
@@ -72,7 +73,8 @@ All utility files live under the `utils` folder.
 - `docker.ts`: Docker container lifecycle management with automatic cleanup on exit/signals.
   Provides command execution, file copying, container committing, and streaming output.
 - `env.ts`: Hierarchical .env file loading from repo root down to cwd. Handles both `.env` and
-  `.env.secret` files, skipping already-loaded paths.
+  `.env.secret` files, skipping already-loaded paths. Respects `SKRIBULAT_ENV_FILES=0` to disable
+  reading env files entirely.
 - `errors.ts`: CLI error handling with `CliError` class and `AggregateError` formatting support.
 - `flags.ts`: CLI flag parsing utilities supporting `--flag=value` and `--flag value` syntaxes.
   Includes integer validation helpers.

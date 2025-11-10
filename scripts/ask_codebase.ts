@@ -1,5 +1,6 @@
 import {
   buildFilteredFileEntries,
+  countLines,
   renderDirectoryStructure,
   renderFileBlocks,
 } from "../utils/codebase_snapshot.ts";
@@ -12,6 +13,7 @@ const MAX_TOKENS = 4096;
 
 type ParsedArgs = {
   exclude: RegExp[];
+  dryRun: boolean;
   include: RegExp[];
   model: string;
   question: string;
@@ -27,6 +29,7 @@ function usage() {
       "  -e, --exclude <pattern>   Regex for files to exclude (repeatable)",
       "  -m, --model <name>        Model name to send to OpenRouter",
       "  --question <text>         Explicit question text (otherwise use positional args)",
+      "  --dry-run                 List matching files with line counts instead of querying the model",
       "  -h, --help                Show this help message",
     ].join("\n"),
   );
@@ -44,6 +47,7 @@ function compileRegex(flag: string, pattern: string): RegExp {
 function parseArgs(argv: readonly string[]): ParsedArgs {
   const include: RegExp[] = [];
   const exclude: RegExp[] = [];
+  let dryRun = false;
   let model = DEFAULT_MODEL;
   const questionParts: string[] = [];
 
@@ -97,11 +101,16 @@ function parseArgs(argv: readonly string[]): ParsedArgs {
       questionParts.push(value);
       continue;
     }
+    if (arg === "--dry-run") {
+      dryRun = true;
+      continue;
+    }
     questionParts.push(arg);
   }
 
   return {
     exclude,
+    dryRun,
     include,
     model,
     question: questionParts.join(" ").trim(),
@@ -132,13 +141,26 @@ export async function runAskCodebase(argv: string[]) {
     usage();
     return;
   }
-  const { include, exclude, model, question } = parseArgs(argv);
+  const { include, exclude, model, question, dryRun } = parseArgs(argv);
   if (!question) {
     throw new CliError("A question or prompt is required.");
   }
   const entries = buildFilteredFileEntries({ include, exclude });
   if (entries.length === 0) {
     console.log("No git-tracked files matched under the current directory.");
+    return;
+  }
+  if (dryRun) {
+    console.log("Dry run: files that would be sent to the model");
+    let totalLines = 0;
+    for (const entry of entries) {
+      const content = await Deno.readTextFile(entry.absolutePath);
+      const lines = countLines(content);
+      totalLines += lines;
+      console.log(`${entry.cwdRelativePosix}: ${lines} line${lines === 1 ? "" : "s"}`);
+    }
+    console.log(`Total files: ${entries.length}`);
+    console.log(`Total lines: ${totalLines}`);
     return;
   }
   const directorySection = renderDirectoryStructure(entries).trimEnd();

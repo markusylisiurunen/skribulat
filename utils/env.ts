@@ -28,6 +28,13 @@ function buildDirectoryChain(root: string, target: string): string[] {
 }
 
 export async function loadEnv({ cwd = Deno.cwd(), force = false }: LoadEnvOptions = {}) {
+  const envFilesSetting = Deno.env.get("SKRIBULAT_ENV_FILES");
+  if (envFilesSetting !== undefined) {
+    const normalized = envFilesSetting.trim();
+    if (normalized.length > 0 && Number(normalized) === 0) {
+      return;
+    }
+  }
   const repoRoot = resolveRepoRoot(cwd);
   const directories = buildDirectoryChain(repoRoot, cwd);
   const newlyLoaded: string[] = [];
