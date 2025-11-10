@@ -105,12 +105,28 @@ export function renderDirectoryStructure(entries: FileEntry[]): string {
   return lines.join("\n");
 }
 
+type FileBlockStats = {
+  content: string;
+  totalCharacters: number;
+  totalLines: number;
+};
+
 export async function renderFileBlocks(entries: FileEntry[]): Promise<string> {
-  if (entries.length === 0) return "";
+  return (await renderFileBlocksWithStats(entries)).content;
+}
+
+export async function renderFileBlocksWithStats(entries: FileEntry[]): Promise<FileBlockStats> {
+  if (entries.length === 0) {
+    return { content: "", totalCharacters: 0, totalLines: 0 };
+  }
   let result = "## Files\n\n";
+  let totalLines = 0;
+  let totalCharacters = 0;
   for (let index = 0; index < entries.length; index++) {
     const entry = entries[index];
     const content = await Deno.readTextFile(entry.absolutePath);
+    totalCharacters += content.length;
+    totalLines += countLines(content);
     result += `<file path="${entry.cwdRelativePosix}">\n`;
     if (content.length > 0) {
       result += content;
@@ -121,7 +137,7 @@ export async function renderFileBlocks(entries: FileEntry[]): Promise<string> {
     result += "</file>";
     result += index === entries.length - 1 ? "\n" : "\n\n";
   }
-  return result;
+  return { content: result, totalCharacters, totalLines };
 }
 
 export function countLines(content: string): number {

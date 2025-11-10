@@ -2,7 +2,7 @@ import {
   buildFilteredFileEntries,
   countLines,
   renderDirectoryStructure,
-  renderFileBlocks,
+  renderFileBlocksWithStats,
 } from "../utils/codebase_snapshot.ts";
 import { loadEnv } from "../utils/env.ts";
 import { CliError, printCliError } from "../utils/errors.ts";
@@ -10,8 +10,11 @@ import { generateCompletion } from "../utils/llm.ts";
 
 const DEFAULT_MODEL = "google/gemini-2.5-flash-preview-09-2025";
 const MAX_TOKENS = 4096;
+const DEFAULT_LINE_LIMIT = 50_000;
+const DEFAULT_CHARACTER_LIMIT = DEFAULT_LINE_LIMIT * 40;
 
 type ParsedArgs = {
+  allowLimitOverride: boolean;
   exclude: RegExp[];
   dryRun: boolean;
   include: RegExp[];
@@ -30,6 +33,7 @@ function usage() {
       "  -e, --exclude <pattern>   Regex for files to exclude (repeatable)",
       "  -m, --model <name>        Model name to send to OpenRouter",
       "  --question <text>         Explicit question text (otherwise use positional args)",
+      "  --allow-limit-override    Allow sending more than 50k lines / 2M characters",
       "  --dry-run                 List matching files with line counts instead of querying the model",
       "  -h, --help                Show this help message",
     ].join("\n"),
@@ -50,6 +54,7 @@ function parseArgs(argv: readonly string[]): ParsedArgs {
   const exclude: RegExp[] = [];
   let dryRun = false;
   let model = DEFAULT_MODEL;
+  let allowLimitOverride = false;
   const questionParts: string[] = [];
 
   for (let i = 0; i < argv.length; i++) {
@@ -106,10 +111,15 @@ function parseArgs(argv: readonly string[]): ParsedArgs {
       dryRun = true;
       continue;
     }
+    if (arg === "--allow-limit-override") {
+      allowLimitOverride = true;
+      continue;
+    }
     questionParts.push(arg);
   }
 
   return {
+    allowLimitOverride,
     exclude,
     dryRun,
     include,
@@ -142,7 +152,7 @@ export async function runAskCodebase(argv: string[]) {
     usage();
     return;
   }
-  const { include, exclude, model, question, dryRun } = parseArgs(argv);
+  const { include, exclude, model, question, dryRun, allowLimitOverride } = parseArgs(argv);
   if (!question && !dryRun) {
     throw new CliError("A question or prompt is required.");
   }
@@ -165,7 +175,22 @@ export async function runAskCodebase(argv: string[]) {
     return;
   }
   const directorySection = renderDirectoryStructure(entries).trimEnd();
-  const fileSection = (await renderFileBlocks(entries)).trimEnd();
+  const { content: fileSectionRaw, totalLines, totalCharacters } = await renderFileBlocksWithStats(
+    entries,
+  );
+  if (
+    !allowLimitOverride &&
+    (totalLines > DEFAULT_LINE_LIMIT || totalCharacters > DEFAULT_CHARACTER_LIMIT)
+  ) {
+    throw new CliError(
+      [
+        "Codebase snapshot exceeds the default limit (50,000 lines / 2,000,000 characters).",
+        `Current snapshot size: ${totalLines.toLocaleString()} lines, ${totalCharacters.toLocaleString()} characters.`,
+        "Rerun ask-codebase with --allow-limit-override to proceed.",
+      ].join(" "),
+    );
+  }
+  const fileSection = fileSectionRaw.trimEnd();
   const snapshot = [directorySection, fileSection].filter((section) => section.length > 0).join(
     "\n\n",
   );
