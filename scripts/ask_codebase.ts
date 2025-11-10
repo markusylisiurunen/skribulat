@@ -9,7 +9,7 @@ import { CliError, printCliError } from "../utils/errors.ts";
 import { generateCompletion } from "../utils/llm.ts";
 
 const DEFAULT_MODEL = "google/gemini-2.5-flash-preview-09-2025";
-const MAX_TOKENS = 4096;
+const MAX_TOKENS = 8192;
 const DEFAULT_LINE_LIMIT = 50_000;
 const DEFAULT_CHARACTER_LIMIT = DEFAULT_LINE_LIMIT * 40;
 
