@@ -4,6 +4,7 @@ import { SKRIBULAT_CONFIG_FILENAME, skribulatPath } from "./paths.ts";
 export type AgentToolConfig = {
   command?: string;
   env?: Record<string, string>;
+  envPassthrough?: string[];
   model?: string;
   reasoningEffort?: "minimal" | "low" | "medium" | "high";
   tool?: "codex" | "claude-code" | "shell";
@@ -150,6 +151,18 @@ function normalizeAgentConfig(raw: Record<string, unknown>): AgentToolConfig {
     }
     if (Object.keys(env).length > 0) {
       agent.env = env;
+    }
+  }
+  const passThroughRaw = raw["env_passthrough"];
+  if (passThroughRaw) {
+    const keys = Array.isArray(passThroughRaw) ? passThroughRaw : [passThroughRaw];
+    const normalized = keys
+      .filter((value): value is string => typeof value === "string")
+      .map((value) => value.trim())
+      .filter((value) => value.length > 0);
+    const unique = Array.from(new Set(normalized));
+    if (unique.length > 0) {
+      agent.envPassthrough = unique;
     }
   }
   return agent;

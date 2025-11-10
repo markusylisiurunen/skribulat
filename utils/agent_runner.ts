@@ -97,6 +97,7 @@ function buildCodexCommand(config: AgentToolConfig, promptPath: string): string 
     "codex exec --json",
     "--dangerously-bypass-approvals-and-sandbox",
     `--model ${model}`,
+    `-c shell_environment_policy.ignore_default_excludes=true`,
     `-c model_reasoning_effort=\"${reasoningEffort}\"`,
     `-c model_reasoning_summary=\"auto\"`,
   ].join(" ");

@@ -102,6 +102,20 @@ All utility files live under the `utils` folder.
   implementation).
 - `text.ts`: Terminal text formatting utilities (console width truncation).
 
+## Configuration
+
+- `.skribulat/config.yaml`: Defines agent defaults consumed by `utils/project_config.ts`. Each
+  `agent` block (global or command-specific) can provide:
+  - `tool`: `"codex"`, `"claude-code"`, or `"shell"` (default `codex` if omitted).
+  - `model`, `command`, and `reasoning_effort` overrides passed to the selected agent CLI.
+  - `env`: committed key/value pairs that are injected into the Docker runner environment.
+  - `env_passthrough`: a list of environment variable names that should be copied from the caller's
+    environment into the container when present. Use this for secrets you prefer to set locally
+    (e.g., `OPENAI_API_KEY`, `GITHUB_TOKEN`) while keeping the keys documented in version control.
+- Downstream scripts call `buildRunnerEnv` to merge base variables, committed overrides, and any
+  pass-through keys before starting the container, ensuring flags and secrets are consistently
+  available during agent execution.
+
 ## Prompt templates
 
 The `prompts/` folder contains LLM prompt templates embedded into the compiled binary. Templates use

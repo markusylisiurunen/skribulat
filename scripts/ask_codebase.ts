@@ -23,6 +23,7 @@ function usage() {
   console.log(
     [
       "Usage: skribulat ask-codebase [options] <question>",
+      "       (question required unless --dry-run)",
       "",
       "Options:",
       "  -i, --include <pattern>   Regex for files to include (repeatable)",
@@ -142,7 +143,7 @@ export async function runAskCodebase(argv: string[]) {
     return;
   }
   const { include, exclude, model, question, dryRun } = parseArgs(argv);
-  if (!question) {
+  if (!question && !dryRun) {
     throw new CliError("A question or prompt is required.");
   }
   const entries = buildFilteredFileEntries({ include, exclude });

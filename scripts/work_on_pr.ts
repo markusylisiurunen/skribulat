@@ -15,6 +15,7 @@ import { explainIssueLabels, formatAgentsGuidance } from "../utils/guidance.ts";
 import { readFlag } from "../utils/flags.ts";
 import { AgentToolConfig, loadProjectConfig } from "../utils/project_config.ts";
 import { DockerRunner } from "../utils/docker.ts";
+import { buildRunnerEnv } from "../utils/agent_env.ts";
 import {
   AGENT_WORKDIR,
   HOST_REPO_MOUNT,
@@ -252,16 +253,12 @@ export async function runWorkOnPr(argv: string[]) {
     model: modelArg,
   });
   const githubUsername = Deno.env.get("GITHUB_USERNAME") ?? cfg.githubOwner;
-  const runnerEnv: Record<string, string> = {
+  const baseRunnerEnv: Record<string, string> = {
     DEBIAN_FRONTEND: "noninteractive",
     GITHUB_TOKEN: cfg.githubToken,
     GIT_CREDENTIAL_USERNAME: githubUsername,
   };
-  if (agentConfig?.env) {
-    for (const [key, value] of Object.entries(agentConfig.env)) {
-      runnerEnv[key] = value;
-    }
-  }
+  const runnerEnv = buildRunnerEnv(baseRunnerEnv, agentConfig);
   const runner = new DockerRunner({
     envs: runnerEnv,
     imageName: cfg.agentRunnerImage,

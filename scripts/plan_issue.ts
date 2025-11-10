@@ -12,6 +12,7 @@ import {
 import { readPositiveIntegerFlag } from "../utils/flags.ts";
 import { AgentToolConfig, loadProjectConfig, PlanIssueConfig } from "../utils/project_config.ts";
 import { DockerRunner } from "../utils/docker.ts";
+import { buildRunnerEnv } from "../utils/agent_env.ts";
 import {
   AGENT_WORKDIR,
   HOST_REPO_MOUNT,
@@ -76,17 +77,12 @@ async function generatePlanViaAgent(
   envConfig: ReturnType<typeof config>,
 ) {
   const githubUsername = Deno.env.get("GITHUB_USERNAME") ?? envConfig.githubOwner;
-  const runnerEnv: Record<string, string> = {
+  const baseRunnerEnv: Record<string, string> = {
     DEBIAN_FRONTEND: "noninteractive",
     GITHUB_TOKEN: envConfig.githubToken,
     GIT_CREDENTIAL_USERNAME: githubUsername,
   };
-  const agentEnv = agentConfig?.env;
-  if (agentEnv) {
-    for (const [key, value] of Object.entries(agentEnv)) {
-      runnerEnv[key] = value;
-    }
-  }
+  const runnerEnv = buildRunnerEnv(baseRunnerEnv, agentConfig);
   const runner = new DockerRunner({
     envs: runnerEnv,
     imageName: envConfig.agentRunnerImage,

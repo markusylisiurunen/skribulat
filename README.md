@@ -34,10 +34,71 @@ Each script lives in `scripts/` and can be imported or executed directly with De
 
 ### Configuration
 
-- Place repository-specific settings in `.skribulat/config.yaml`.
-- Hooks and agent artifacts live under `.skribulat/`:
-  - `.skribulat/hooks/<hook>.sh` – optional pre/post hooks invoked during agent runs.
-  - `.skribulat/patches/` – git diff snapshots captured after agent activity.
+Skribulat reads `.skribulat/config.yaml` to figure out how each command should run its agent. The
+file starts with a top-level `agent` block that defines global defaults, and optional sections such
+as `plan_issue`, `work_on_issue`, and `work_on_pr` that override those defaults for a single
+workflow. Each of these sections may include a nested `agent` block plus any command-specific
+fields—Plan Issue, for example, understands `agents_directory_map`, `label_explanations`, and
+`tool_guidance`.
+
+An `agent` block accepts the following knobs: `tool` (`"codex"`, `"claude-code"`, or `"shell"`),
+`model`, `command` (used mainly when `tool: shell`), `reasoning_effort` (passed through to Codex),
+`env` for committed key/value pairs, and `env_passthrough` for the names of secrets you want copied
+from your current shell into the Docker container. When a command runs, Skribulat builds the runner
+environment by combining its built-in defaults (GitHub auth, DEBIAN_FRONTEND, etc.), the committed
+`env` values, and any pass-through variables that are set locally. This keeps secrets uncommitted
+while still documenting which ones are required.
+
+Example `.skribulat/config.yaml`:
+
+```yaml
+agent:
+  tool: codex
+  model: gpt-5-codex
+  reasoning_effort: low
+  env:
+    AGENT_PROMPT_STYLE: "codex-default" # toggle shared by every command
+  env_passthrough:
+    - OPENAI_API_KEY # pulled from the caller's env at runtime
+    - ANTHROPIC_API_KEY # likewise, keeps secrets out of git
+    - GITHUB_TOKEN # documented requirement without storing the secret
+
+plan_issue:
+  agents_directory_map:
+    backend: ["services/api", "libs/backend"]
+    frontend: ["apps/web"]
+  label_explanations: "backend=API layer, frontend=React app."
+  agent:
+    tool: claude-code # override tool just for plan-issue
+    model: sonnet
+    env:
+      PLAN_TEMPERATURE: "0.2" # extra toggle only this command needs
+    env_passthrough:
+      - OPENROUTER_API_KEY # forwarded in addition to global keys
+
+work_on_issue:
+  agent:
+    tool: shell
+    command: "./scripts/custom-shell-agent.sh {{PROMPT_PATH}}"
+    env:
+      CUSTOM_AGENT_MODE: "fast"
+
+work_on_pr:
+  agent:
+    tool: codex
+    model: gpt-5-codex
+    env_passthrough:
+      - REVIEW_WEBHOOK_TOKEN
+```
+
+The snippet shows global defaults plus per-command overrides that swap tools, models, committed
+environment values, and pass-through secrets. Only the key names for sensitive data are committed,
+so you can safely keep their values in `.env.secret` or your shell.
+
+Hooks and agent artifacts live under `.skribulat/`:
+
+- `.skribulat/hooks/<hook>.sh` – optional pre/post hooks invoked during agent runs.
+- `.skribulat/patches/` – git diff snapshots captured after agent activity.
 
 ### Environment variables
 
