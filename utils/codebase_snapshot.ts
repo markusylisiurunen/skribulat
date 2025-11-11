@@ -33,14 +33,32 @@ function matchesAny(path: string, patterns: readonly RegExp[]): boolean {
   return patterns.some((pattern) => pattern.test(path));
 }
 
-function collectTrackedFiles(repoRoot: string): string[] {
+function collectGitVisibleFiles(repoRoot: string): string[] {
+  const uniquePaths = new Set<string>();
+
   const trackedRaw = runGitSync(["ls-files"], { cwd: repoRoot });
-  if (!trackedRaw) return [];
-  return trackedRaw.split("\n").map((entry) => entry.trim()).filter((entry) => entry.length > 0);
+  if (trackedRaw) {
+    trackedRaw.split("\n")
+      .map((entry) => entry.trim())
+      .filter((entry) => entry.length > 0)
+      .forEach((entry) => uniquePaths.add(entry));
+  }
+
+  const untrackedRaw = runGitSync(["ls-files", "--others", "--exclude-standard"], {
+    cwd: repoRoot,
+  });
+  if (untrackedRaw) {
+    untrackedRaw.split("\n")
+      .map((entry) => entry.trim())
+      .filter((entry) => entry.length > 0)
+      .forEach((entry) => uniquePaths.add(entry));
+  }
+
+  return Array.from(uniquePaths);
 }
 
 function buildFileEntries(repoRoot: string, cwd: string): FileEntry[] {
-  return collectTrackedFiles(repoRoot)
+  return collectGitVisibleFiles(repoRoot)
     .map((repoRelativePath) => {
       const absolutePath = join(repoRoot, repoRelativePath);
       const cwdRelativePath = relative(cwd, absolutePath);

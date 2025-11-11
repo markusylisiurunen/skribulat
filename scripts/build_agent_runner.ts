@@ -5,8 +5,8 @@ import { DockerRunner } from "../utils/docker.ts";
 import { printCliError } from "../utils/errors.ts";
 
 const DEFAULT_BASE_IMAGE = "ubuntu:25.10";
-const DEFAULT_NODE_VERSION = "22.19.0";
-const DEFAULT_GO_VERSION = "1.25.2";
+const DEFAULT_NODE_VERSION = "24.11.0";
+const DEFAULT_GO_VERSION = "1.25.4";
 const DEFAULT_NPM_PACKAGES = ["@openai/codex", "@anthropic-ai/claude-code"];
 
 const BASE_APT_PACKAGES = [

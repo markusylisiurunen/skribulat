@@ -92,7 +92,7 @@ async function printFileStats(entries: FileEntry[]) {
     stats.push({ path: entry.cwdRelativePosix, lines, tokens });
   }
   if (stats.length === 0) {
-    console.log("No git-tracked files matched under the current directory.");
+    console.log("No git-visible files matched under the current directory.");
     return;
   }
   const maxPathLength = Math.max(...stats.map((stat) => stat.path.length));
@@ -119,7 +119,7 @@ export async function runMarkdownCodebase(argv: string[]) {
   const { include, exclude, statsOnly } = parseArgs(argv);
   const entries = buildFilteredFileEntries({ include, exclude });
   if (entries.length === 0) {
-    console.log("No git-tracked files matched under the current directory.");
+    console.log("No git-visible files matched under the current directory.");
     return;
   }
   if (statsOnly) {

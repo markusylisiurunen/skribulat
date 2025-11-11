@@ -23,13 +23,14 @@ All scripts live under the `scripts` folder (e.g., `scripts/commit.ts`).
   `anthropic/claude-sonnet-4.5`). Gathers environment context (OS, shell, cwd, HOME). Generates
   single-line command proposal, prompts for confirmation (editable). Executes via user's `$SHELL`
   (zsh only supported). Records command to zsh history (`$HISTFILE` or `~/.zsh_history`).
-- `markdown_codebase.ts`: Emits markdown snapshot of git-tracked files under current directory. Runs
-  `git ls-files` from repo root, filters to files within cwd (excludes `..` paths), converts paths
-  to POSIX format. Supports `-i`/`--include` and `-e`/`--exclude` regex filters (repeatable).
-  Default output: directory structure section (grouped by directory) + file contents section (each
-  file wrapped in `<file path="...">` tags). With `--stats` flag: prints lines and estimated token
-  count per file (via `tokenx` library), plus total token estimate. Useful for preparing codebase
-  context for LLM prompts or assessing context window requirements.
+- `markdown_codebase.ts`: Emits markdown snapshot of git-visible files (tracked plus untracked,
+  non-ignored) under current directory. Runs `git ls-files` from repo root, filters to files within
+  cwd (excludes `..` paths), converts paths to POSIX format. Supports `-i`/`--include` and
+  `-e`/`--exclude` regex filters (repeatable). Default output: directory structure section (grouped
+  by directory) + file contents section (each file wrapped in `<file path="...">` tags). With
+  `--stats` flag: prints lines and estimated token count per file (via `tokenx` library), plus total
+  token estimate. Useful for preparing codebase context for LLM prompts or assessing context window
+  requirements.
 - `ask_codebase.ts`: Builds the same filtered snapshot as `markdown_codebase.ts`, but instead of
   printing it, routes the directory structure + `<file>` blocks to an OpenRouter model along with a
   required question/prompt. Supports the same include/exclude regex flags plus `--model`,

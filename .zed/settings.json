@@ -12,7 +12,7 @@
   "languages": {
     "Markdown": {
       "preferred_line_length": 100,
-      "soft_wrap": "bounded"
+      "soft_wrap": "preferred_line_length"
     },
     "JavaScript": {
       "language_servers": [

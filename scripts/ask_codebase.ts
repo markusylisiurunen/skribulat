@@ -158,7 +158,7 @@ export async function runAskCodebase(argv: string[]) {
   }
   const entries = buildFilteredFileEntries({ include, exclude });
   if (entries.length === 0) {
-    console.log("No git-tracked files matched under the current directory.");
+    console.log("No git-visible files matched under the current directory.");
     return;
   }
   if (dryRun) {
