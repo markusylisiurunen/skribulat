@@ -13,7 +13,7 @@ const textEncoder = new TextEncoder();
 type ParsedArgs = {
   include: RegExp[];
   exclude: RegExp[];
-  statsOnly: boolean;
+  dryRun: boolean;
 };
 
 function usage() {
@@ -24,7 +24,7 @@ function usage() {
       "Options:",
       "  -i, --include <pattern>   Regex for files to include (can be repeated)",
       "  -e, --exclude <pattern>   Regex for files to exclude (can be repeated)",
-      "      --stats               Print line/character counts instead of file contents",
+      "      --dry-run             List matching files with line/token counts instead of file contents",
       "  -h, --help                Show this help message",
     ].join("\n"),
   );
@@ -42,7 +42,7 @@ function compileRegex(flag: string, pattern: string): RegExp {
 function parseArgs(argv: readonly string[]): ParsedArgs {
   const include: RegExp[] = [];
   const exclude: RegExp[] = [];
-  let statsOnly = false;
+  let dryRun = false;
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
@@ -70,14 +70,14 @@ function parseArgs(argv: readonly string[]): ParsedArgs {
       exclude.push(compileRegex("--exclude", pattern));
       continue;
     }
-    if (arg === "--stats") {
-      statsOnly = true;
+    if (arg === "--dry-run") {
+      dryRun = true;
       continue;
     }
     throw new CliError(`Unknown argument: ${arg}`);
   }
 
-  return { include, exclude, statsOnly };
+  return { include, exclude, dryRun };
 }
 
 async function printFileStats(entries: FileEntry[]) {
@@ -116,13 +116,13 @@ export async function runMarkdownCodebase(argv: string[]) {
     usage();
     return;
   }
-  const { include, exclude, statsOnly } = parseArgs(argv);
+  const { include, exclude, dryRun } = parseArgs(argv);
   const entries = buildFilteredFileEntries({ include, exclude });
   if (entries.length === 0) {
     console.log("No git-visible files matched under the current directory.");
     return;
   }
-  if (statsOnly) {
+  if (dryRun) {
     await printFileStats(entries);
     return;
   }

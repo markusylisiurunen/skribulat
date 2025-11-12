@@ -30,11 +30,6 @@ async function ensureStagedChanges(repoPath: string) {
   }
 }
 
-async function getCurrentBranch(repoPath: string) {
-  const { stdout } = await runGit(["rev-parse", "--abbrev-ref", "HEAD"], { cwd: repoPath });
-  return stdout.trim();
-}
-
 async function getDiff(repoPath: string, args: string[]) {
   const result = await runGit(args, { cwd: repoPath, allowFailure: true });
   if (result.code !== 0) {
@@ -44,43 +39,14 @@ async function getDiff(repoPath: string, args: string[]) {
 }
 
 type CollectedDiffs = {
-  branchPatch: string;
-  branchStat: string;
   stagedPatch: string;
   stagedStat: string;
 };
 
-async function collectDiffs(
-  repoPath: string,
-  defaultBranch: string,
-  currentBranch: string,
-): Promise<CollectedDiffs> {
+async function collectDiffs(repoPath: string): Promise<CollectedDiffs> {
   const stagedStat = await getDiff(repoPath, ["diff", "--cached", "--stat"]);
   const stagedPatch = await getDiff(repoPath, ["diff", "--cached"]);
-  let branchStat = "";
-  let branchPatch = "";
-  if (currentBranch !== defaultBranch) {
-    const comparisonTargets = [
-      `origin/${defaultBranch}...HEAD`,
-      `${defaultBranch}...HEAD`,
-      `origin/${defaultBranch}`,
-      defaultBranch,
-    ];
-    for (const target of comparisonTargets) {
-      try {
-        branchStat = await getDiff(repoPath, ["diff", "--stat", target]);
-        branchPatch = await getDiff(repoPath, ["diff", target]);
-        if (branchStat.trim().length > 0 || branchPatch.trim().length > 0) {
-          break;
-        }
-      } catch {
-        continue;
-      }
-    }
-  }
   return {
-    branchPatch,
-    branchStat,
     stagedPatch,
     stagedStat,
   };
@@ -104,46 +70,22 @@ function sanitizeSubject(subject: string) {
   return withoutPrefix;
 }
 
-async function buildPrompt(
-  defaultBranch: string,
-  currentBranch: string,
-  diffs: CollectedDiffs,
-  extraInstructions?: string,
-) {
+async function buildPrompt(diffs: CollectedDiffs, extraInstructions?: string) {
   const template = await loadPrompt("commit_subject_user.txt");
-  const branchContext = (() => {
-    if (currentBranch === defaultBranch) return "";
-    const stat = diffs.branchStat.trim();
-    const patch = diffs.branchPatch.trim();
-    if (!stat && !patch) return "";
-    const statSection = truncate(stat || "(no summary)", DIFF_CHAR_LIMIT);
-    const patchSection = truncate(patch || "(no patch)", DIFF_CHAR_LIMIT);
-    return `Branch context vs default branch (for awareness only, do not describe these directly):\n` +
-      `git diff --stat origin/${defaultBranch}...HEAD (fallbacks applied if unavailable):\n${statSection}\n\n` +
-      `git diff origin/${defaultBranch}...HEAD (fallbacks applied if unavailable):\n${patchSection}\n`;
-  })();
   const additionalGuidance = extraInstructions && extraInstructions.trim().length > 0
     ? `\nAdditional user guidance (follow when drafting the subject):\n${extraInstructions.trim()}\n`
     : "";
   const prompt = renderPrompt(template, {
     ADDITIONAL_GUIDANCE: additionalGuidance,
-    BRANCH_CONTEXT: branchContext ? `\n${branchContext}` : "",
-    CURRENT_BRANCH: currentBranch,
-    DEFAULT_BRANCH: defaultBranch,
     STAGED_PATCH: truncate(diffs.stagedPatch.trim() || "(no patch)", DIFF_CHAR_LIMIT),
     STAGED_STAT: truncate(diffs.stagedStat.trim() || "(no summary)", DIFF_CHAR_LIMIT),
   });
   return prompt.trim();
 }
 
-async function generateCommitSubject(
-  defaultBranch: string,
-  currentBranch: string,
-  diffs: CollectedDiffs,
-  extraInstructions?: string,
-) {
+async function generateCommitSubject(diffs: CollectedDiffs, extraInstructions?: string) {
   const systemInstructions = await loadPrompt("commit_subject_system.txt");
-  const prompt = await buildPrompt(defaultBranch, currentBranch, diffs, extraInstructions);
+  const prompt = await buildPrompt(diffs, extraInstructions);
   const completion = await generateCompletion({
     maxTokens: 512,
     model: GENERATION_MODEL,
@@ -224,12 +166,9 @@ export async function runCommit(argv: string[]) {
   }
 
   await ensureStagedChanges(repoPath);
-  const currentBranch = await getCurrentBranch(repoPath);
-  const diffs = await collectDiffs(repoPath, cfg.githubDefaultBranch, currentBranch);
+  const diffs = await collectDiffs(repoPath);
   const additionalGuidance = extraInstructions.join(" ").trim();
   const proposals = await generateCommitSubject(
-    cfg.githubDefaultBranch,
-    currentBranch,
     diffs,
     additionalGuidance.length > 0 ? additionalGuidance : undefined,
   );
