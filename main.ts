@@ -4,6 +4,7 @@ import { runCommit } from "./scripts/commit.ts";
 import { runExec } from "./scripts/exec.ts";
 import { runMarkdownCodebase } from "./scripts/markdown_codebase.ts";
 import { runPlanIssue } from "./scripts/plan_issue.ts";
+import { runPlanAndWorkOnIssue } from "./scripts/plan_and_work_on_issue.ts";
 import { runWorkOnIssue } from "./scripts/work_on_issue.ts";
 import { runWorkOnPr } from "./scripts/work_on_pr.ts";
 import { CliError, printCliError } from "./utils/errors.ts";
@@ -17,6 +18,7 @@ const COMMANDS: Record<string, CommandHandler> = {
   "exec": runExec,
   "markdown-codebase": runMarkdownCodebase,
   "plan-issue": runPlanIssue,
+  "plan-and-work-on-issue": runPlanAndWorkOnIssue,
   "work-on-issue": runWorkOnIssue,
   "work-on-pr": runWorkOnPr,
 };
@@ -25,14 +27,15 @@ function printUsage() {
   console.log(
     `Usage: skribulat <command> [options]\n\n` +
       `Commands:\n` +
-      `  ask-codebase        Send a codebase snapshot and question to an LLM.\n` +
-      `  build-agent-runner  Build a Docker image for running local agents.\n` +
-      `  commit              Generate and apply AI-assisted commit messages.\n` +
-      `  exec                Propose and optionally run an AI-generated shell command.\n` +
-      `  markdown-codebase   Emit a markdown snapshot of the tracked files under the current directory.\n` +
-      `  plan-issue          Analyze an issue and post an implementation plan.\n` +
-      `  work-on-issue       Spin up an agent to implement an issue branch and PR.\n` +
-      `  work-on-pr          Address feedback on an existing pull request via agent.\n` +
+      `  ask-codebase            Send a codebase snapshot and question to an LLM.\n` +
+      `  build-agent-runner      Build a Docker image for running local agents.\n` +
+      `  commit                  Generate and apply AI-assisted commit messages.\n` +
+      `  exec                    Propose and optionally run an AI-generated shell command.\n` +
+      `  markdown-codebase       Emit a markdown snapshot of the tracked files under the current directory.\n` +
+      `  plan-issue              Analyze an issue and post an implementation plan.\n` +
+      `  plan-and-work-on-issue  Run planning and implementation for an issue sequentially.\n` +
+      `  work-on-issue           Spin up an agent to implement an issue branch and PR.\n` +
+      `  work-on-pr              Address feedback on an existing pull request via agent.\n` +
       `\nRun 'skribulat <command> --help' for command-specific options.`,
   );
 }

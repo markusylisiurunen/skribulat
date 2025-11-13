@@ -42,6 +42,10 @@ All scripts live under the `scripts` folder (e.g., `scripts/commit.ts`).
   label→directory mapping from `.skribulat/config.yaml`). Agent explores codebase and returns
   markdown plan with sections: summary, background, implementation steps, relevant files, open
   questions. Posts result as issue comment.
+- `plan_and_work_on_issue.ts`: Convenience wrapper that first runs the plan flow (same behavior as
+  `plan_issue.ts`, including posting the comment) and immediately follows up with the implementation
+  flow from `work_on_issue.ts`. Supports `--issue <number>` or interactive selection, plus optional
+  `--agent`/`--model` overrides that are forwarded to the work step.
 - `work_on_issue.ts`: End-to-end issue implementation via agent (Codex, Claude Code, or shell).
   Supports `--issue <number>`, `--agent <tool>` (codex, claude-code, shell), and `--model <name>`
   (e.g., gpt-5-codex, sonnet, haiku). Generates kebab-case branch name from issue metadata
