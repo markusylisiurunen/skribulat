@@ -20,6 +20,7 @@ import {
   verifyGithubHttps,
 } from "../utils/agent_workspace.ts";
 import { runAgent } from "../utils/agent_runner.ts";
+import { runAgentHook } from "../utils/hooks.ts";
 import { CliError, printCliError } from "../utils/errors.ts";
 
 function usage() {
@@ -96,6 +97,7 @@ async function generatePlanViaAgent(
       githubOwner: envConfig.githubOwner,
       githubRepo: envConfig.githubRepo,
     });
+    await runAgentHook(runner, "pre-work");
     await verifyGithubHttps(runner);
     const plan = await runAgent({
       openAIApiKey: envConfig.openAIApiKey,
