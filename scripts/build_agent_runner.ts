@@ -1,7 +1,6 @@
 import { parseArgs } from "@std/cli/parse-args";
-import { loadEnv } from "../utils/env.ts";
 import { config } from "../utils/config.ts";
-import { DockerRunner } from "../utils/docker.ts";
+import { loadEnv } from "../utils/env.ts";
 import { printCliError } from "../utils/errors.ts";
 
 const DEFAULT_BASE_IMAGE = "ubuntu:25.10";
@@ -108,15 +107,19 @@ function buildScript(options: BuildOptions): string[] {
   return toCommandList(commands);
 }
 
-async function trace(
-  runner: DockerRunner,
-  cmd: Parameters<DockerRunner["runBashCommand"]>[0],
-  opts?: Parameters<DockerRunner["runBashCommand"]>[1],
-) {
-  Deno.stdout.writeSync(textEncoder.encode(`+ ${cmd}\n`));
-  for await (const chunk of runner.streamBashCommand(cmd, opts)) {
-    Deno.stdout.writeSync(textEncoder.encode(chunk.data));
-  }
+function buildDockerfile(options: BuildOptions): string {
+  const commands = buildScript(options);
+  const heredocTag = "SKRIBULAT_SETUP";
+  const lines = [
+    `FROM ${options.baseImage}`,
+    "ENV DEBIAN_FRONTEND=noninteractive",
+    "WORKDIR /root",
+    `RUN bash <<'${heredocTag}'`,
+    "set -euo pipefail",
+    ...commands,
+    heredocTag,
+  ];
+  return `${lines.join("\n")}\n`;
 }
 
 function parseBuildOptions(argv: string[]): BuildOptions {
@@ -194,24 +197,36 @@ function parseBuildOptions(argv: string[]): BuildOptions {
 export async function runBuildAgentRunner(argv: string[]) {
   await loadEnv();
   const options = parseBuildOptions(argv);
-  const commands = buildScript(options);
-  let runner: DockerRunner | undefined;
-  try {
-    console.log(`> Starting build using base image ${options.baseImage}`);
-    runner = new DockerRunner({
-      envs: { DEBIAN_FRONTEND: "noninteractive" },
-      imageName: options.baseImage,
-      workingDir: "/root",
-    });
-    for (const cmd of commands) {
-      await trace(runner, cmd);
-    }
-    console.log("Finalizing image...");
-    await runner.commit(options.imageName);
-    console.log(`Built image ${options.imageName}`);
-  } finally {
-    await runner?.remove();
+  const dockerfile = buildDockerfile(options);
+  console.log(`> Building image ${options.imageName} from base ${options.baseImage}`);
+
+  const buildCommand = new Deno.Command("docker", {
+    args: [
+      "build",
+      "--platform",
+      "linux/amd64",
+      "-t",
+      options.imageName,
+      "-f",
+      "-",
+    ],
+    stdin: "piped",
+    stdout: "inherit",
+    stderr: "inherit",
+  });
+  const child = buildCommand.spawn();
+  if (!child.stdin) {
+    throw new Error("Failed to open stdin for docker build");
   }
+  const writer = child.stdin.getWriter();
+  await writer.write(textEncoder.encode(dockerfile));
+  await writer.close();
+
+  const status = await child.status;
+  if (!status.success) {
+    throw new Error(`docker build failed with exit code ${status.code}`);
+  }
+  console.log(`Built image ${options.imageName}`);
 }
 
 if (import.meta.main) {
