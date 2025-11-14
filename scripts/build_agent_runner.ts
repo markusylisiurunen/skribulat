@@ -27,8 +27,6 @@ const BASE_APT_PACKAGES = [
   "xz-utils",
 ];
 
-const textEncoder = new TextEncoder();
-
 type BuildOptions = {
   aptPackages: string[];
   baseImage: string;
@@ -200,33 +198,36 @@ export async function runBuildAgentRunner(argv: string[]) {
   const dockerfile = buildDockerfile(options);
   console.log(`> Building image ${options.imageName} from base ${options.baseImage}`);
 
-  const buildCommand = new Deno.Command("docker", {
-    args: [
-      "build",
-      "--platform",
-      "linux/amd64",
-      "-t",
-      options.imageName,
-      "-f",
-      "-",
-    ],
-    stdin: "piped",
-    stdout: "inherit",
-    stderr: "inherit",
-  });
-  const child = buildCommand.spawn();
-  if (!child.stdin) {
-    throw new Error("Failed to open stdin for docker build");
-  }
-  const writer = child.stdin.getWriter();
-  await writer.write(textEncoder.encode(dockerfile));
-  await writer.close();
+  const tempDir = await Deno.makeTempDir();
+  const dockerfilePath = `${tempDir}/Dockerfile`;
+  await Deno.writeTextFile(dockerfilePath, dockerfile);
 
-  const status = await child.status;
-  if (!status.success) {
-    throw new Error(`docker build failed with exit code ${status.code}`);
+  try {
+    const buildCommand = new Deno.Command("docker", {
+      args: [
+        "build",
+        "--no-cache",
+        "--platform",
+        "linux/amd64",
+        "-t",
+        options.imageName,
+        "-f",
+        dockerfilePath,
+        tempDir,
+      ],
+      stdout: "inherit",
+      stderr: "inherit",
+    });
+    const child = buildCommand.spawn();
+
+    const status = await child.status;
+    if (!status.success) {
+      throw new Error(`docker build failed with exit code ${status.code}`);
+    }
+    console.log(`Built image ${options.imageName}`);
+  } finally {
+    await Deno.remove(tempDir, { recursive: true });
   }
-  console.log(`Built image ${options.imageName}`);
 }
 
 if (import.meta.main) {
