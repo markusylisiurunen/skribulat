@@ -24,13 +24,17 @@ Skribulat is a Deno-based command-line toolkit for AI-assisted repo workflows.
   or emit stats.
 - `ask-codebase` – capture the same filtered snapshot and forward it, along with your question, to
   an OpenRouter model (no snapshot is echoed to stdout).
-- `plan-issue` – post a structured implementation plan for a GitHub issue.
+- `plan-issue` – post a structured implementation plan for a GitHub issue. Supports
+  `--codex-auth <path>` to copy an existing host `auth.json` into the container before falling back
+  to API-key login.
 - `plan-and-work-on-issue` – run the planning workflow and immediately hand off to the
-  implementation workflow with optional `--agent`/`--model` overrides for the work phase.
+  implementation workflow with optional `--agent`/`--model` overrides for the work phase. Accepts
+  `--codex-auth` and forwards it to both steps.
 - `work-on-issue` – spin up an agent (Codex, Claude Code, or shell) to implement a selected issue
-  end-to-end. Supports `--agent` and `--model` flags.
+  end-to-end. Supports `--agent`, `--model`, and `--codex-auth` for supplying a host Codex
+  credential file instead of logging in with an API key.
 - `work-on-pr` – apply reviewer feedback to an open pull request via an agent run. Supports
-  `--agent` and `--model` flags.
+  `--agent`, `--model`, and `--codex-auth` for the same credential-file workflow.
 
 Each script lives in `scripts/` and can be imported or executed directly with Deno if needed.
 

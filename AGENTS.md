@@ -37,29 +37,34 @@ All scripts live under the `scripts` folder (e.g., `scripts/commit.ts`).
   `--question`, and `--dry-run` (lists matching files with line counts instead of querying). Never
   echoes the snapshot or prompt to stdout—only the model's response.
 - `plan_issue.ts`: Analyzes GitHub issues and posts comprehensive implementation plans. Supports
-  `--issue <number>` or interactive selection. Runs Codex agent with structured prompt including
-  issue metadata, all comments (paginated), and relevant AGENTS.md guidance (discovered via
-  label→directory mapping from `.skribulat/config.yaml`). Agent explores codebase and returns
-  markdown plan with sections: summary, background, implementation steps, relevant files, open
-  questions. Posts result as issue comment.
+  `--issue <number>` or interactive selection plus optional `--codex-auth <path>` to copy a host
+  Codex `auth.json` into the container before running (falls back to API key login if missing). Runs
+  Codex agent with structured prompt including issue metadata, all comments (paginated), and
+  relevant AGENTS.md guidance (discovered via label→directory mapping from
+  `.skribulat/config.yaml`). Agent explores codebase and returns markdown plan with sections:
+  summary, background, implementation steps, relevant files, open questions. Posts result as issue
+  comment.
 - `plan_and_work_on_issue.ts`: Convenience wrapper that first runs the plan flow (same behavior as
   `plan_issue.ts`, including posting the comment) and immediately follows up with the implementation
-  flow from `work_on_issue.ts`. Supports `--issue <number>` or interactive selection, plus optional
-  `--agent`/`--model` overrides that are forwarded to the work step.
+  flow from `work_on_issue.ts`. Supports `--issue <number>` or interactive selection, optional
+  `--agent`/`--model` overrides for the work step, and `--codex-auth <path>` which is forwarded to
+  both plan and work phases.
 - `work_on_issue.ts`: End-to-end issue implementation via agent (Codex, Claude Code, or shell).
-  Supports `--issue <number>`, `--agent <tool>` (codex, claude-code, shell), and `--model <name>`
-  (e.g., gpt-5.1-codex, sonnet, haiku). Generates kebab-case branch name from issue metadata
-  (LLM-powered, max 50 chars, a-z/0-9/hyphens only). Fetches/creates branch. Clones repo into
-  isolated Docker workspace at `/root/agent`. Runs pre-work hook. Agent implements changes, commits,
-  pushes. Generates PR body from issue context + diff. Creates pull request against default branch.
-  Preserves git patches to `.skribulat/patches/` with periodic checkpointing (every 30s during agent
-  run).
+  Supports `--issue <number>`, `--agent <tool>` (codex, claude-code, shell), `--model <name>` (e.g.,
+  gpt-5.1-codex, sonnet, haiku), and `--codex-auth <path>` for copying host Codex credentials into
+  the container instead of logging in with an API key. Generates kebab-case branch name from issue
+  metadata (LLM-powered, max 50 chars, a-z/0-9/hyphens only). Fetches/creates branch. Clones repo
+  into isolated Docker workspace at `/root/agent`. Runs pre-work hook. Agent implements changes,
+  commits, pushes. Generates PR body from issue context + diff. Creates pull request against default
+  branch. Preserves git patches to `.skribulat/patches/` with periodic checkpointing (every 30s
+  during agent run).
 - `work_on_pr.ts`: Addresses PR review feedback via agent (Codex, Claude Code, or shell). Supports
-  `--agent <tool>` (codex, claude-code, shell) and `--model <name>` (e.g., gpt-5.1-codex, sonnet,
-  haiku). Interactive selection of PR, then checkbox selection of specific issue comments and review
-  comment threads to focus on. Fetches associated issues (via `closingIssuesReferences`). Checks out
-  PR branch in Docker workspace. Runs pre-work hook. Agent applies requested changes, commits,
-  pushes. Preserves patches.
+  `--agent <tool>` (codex, claude-code, shell), `--model <name>` (e.g., gpt-5.1-codex, sonnet,
+  haiku), and `--codex-auth <path>` for copying Codex `auth.json` from the host. Interactive
+  selection of PR, then checkbox selection of specific issue comments and review comment threads to
+  focus on. Fetches associated issues (via `closingIssuesReferences`). Checks out PR branch in
+  Docker workspace. Runs pre-work hook. Agent applies requested changes, commits, pushes. Preserves
+  patches.
 
 ## Utility files
 

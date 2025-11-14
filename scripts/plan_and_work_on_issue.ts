@@ -12,10 +12,11 @@ function usage() {
   console.log(
     "Usage: skribulat plan-and-work-on-issue [options]\n\n" +
       "Options:\n" +
-      "  --issue <number>   Plan and work on a specific issue\n" +
-      "  --agent <tool>     Agent tool to use for implementation (codex, claude-code, shell)\n" +
-      "  --model <name>     Model name passed to the work-on-issue step\n" +
-      "  -h, --help         Show this help message",
+      "  --issue <number>     Plan and work on a specific issue\n" +
+      "  --agent <tool>       Agent tool to use for implementation (codex, claude-code, shell)\n" +
+      "  --model <name>       Model name passed to the work-on-issue step\n" +
+      "  --codex-auth <path>  Copy Codex auth.json into the agent container before running\n" +
+      "  -h, --help           Show this help message",
   );
 }
 
@@ -46,10 +47,12 @@ export async function runPlanAndWorkOnIssue(argv: string[]) {
   let issueNumberArg: number | undefined;
   let agentArg: string | undefined;
   let modelArg: string | undefined;
+  let codexAuthPath: string | undefined;
   try {
     ({ rest: restArgs, value: issueNumberArg } = readPositiveIntegerFlag(restArgs, "--issue"));
     ({ rest: restArgs, value: agentArg } = readFlag(restArgs, "--agent"));
     ({ rest: restArgs, value: modelArg } = readFlag(restArgs, "--model"));
+    ({ rest: restArgs, value: codexAuthPath } = readFlag(restArgs, "--codex-auth"));
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     throw new CliError(message);
@@ -66,7 +69,11 @@ export async function runPlanAndWorkOnIssue(argv: string[]) {
     await github.listOpenIssues(cfg.githubOwner, cfg.githubRepo),
   );
   console.log(`Planning implementation approach for issue #${issueNumber}...`);
-  await runPlanIssue(["--issue", issueNumber.toString()]);
+  const planArgs = ["--issue", issueNumber.toString()];
+  if (codexAuthPath) {
+    planArgs.push("--codex-auth", codexAuthPath);
+  }
+  await runPlanIssue(planArgs);
   console.log(`Planning complete. Starting work on issue #${issueNumber}...`);
   const workArgs = ["--issue", issueNumber.toString()];
   if (agentArg) {
@@ -74,6 +81,9 @@ export async function runPlanAndWorkOnIssue(argv: string[]) {
   }
   if (modelArg) {
     workArgs.push("--model", modelArg);
+  }
+  if (codexAuthPath) {
+    workArgs.push("--codex-auth", codexAuthPath);
   }
   await runWorkOnIssue(workArgs);
 }

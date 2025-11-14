@@ -34,10 +34,11 @@ function usage() {
   console.log(
     "Usage: skribulat work-on-issue [options]\n\n" +
       "Options:\n" +
-      "  --issue <number>   Start working on a specific issue\n" +
-      "  --agent <tool>     Agent tool to use (codex, claude-code, shell)\n" +
-      "  --model <name>     Model name (e.g., gpt-5.1-codex, sonnet, haiku)\n" +
-      "  -h, --help         Show this help message",
+      "  --issue <number>     Start working on a specific issue\n" +
+      "  --agent <tool>       Agent tool to use (codex, claude-code, shell)\n" +
+      "  --model <name>       Model name (e.g., gpt-5.1-codex, sonnet, haiku)\n" +
+      "  --codex-auth <path>  Copy Codex auth.json into the agent container before running\n" +
+      "  -h, --help           Show this help message",
   );
 }
 
@@ -244,10 +245,12 @@ export async function runWorkOnIssue(argv: string[]) {
   let issueNumberArg: number | undefined;
   let agentArg: string | undefined;
   let modelArg: string | undefined;
+  let codexAuthPath: string | undefined;
   try {
     ({ rest: restArgs, value: issueNumberArg } = readPositiveIntegerFlag(restArgs, "--issue"));
     ({ rest: restArgs, value: agentArg } = readFlag(restArgs, "--agent"));
     ({ rest: restArgs, value: modelArg } = readFlag(restArgs, "--model"));
+    ({ rest: restArgs, value: codexAuthPath } = readFlag(restArgs, "--codex-auth"));
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     throw new CliError(message);
@@ -339,6 +342,7 @@ export async function runWorkOnIssue(argv: string[]) {
     });
     await runAgent({
       anthropicApiKey: cfg.anthropicApiKey,
+      codexAuthPath,
       openAIApiKey: cfg.openAIApiKey,
       prompt: fullPrompt,
       runner,

@@ -9,7 +9,7 @@ import {
   formatAgentsGuidance,
   instructEfficientToolUse,
 } from "../utils/guidance.ts";
-import { readPositiveIntegerFlag } from "../utils/flags.ts";
+import { readFlag, readPositiveIntegerFlag } from "../utils/flags.ts";
 import { AgentToolConfig, loadProjectConfig, PlanIssueConfig } from "../utils/project_config.ts";
 import { DockerRunner } from "../utils/docker.ts";
 import { buildRunnerEnv } from "../utils/agent_env.ts";
@@ -27,8 +27,9 @@ function usage() {
   console.log(
     "Usage: skribulat plan-issue [options]\n\n" +
       "Options:\n" +
-      "  --issue <number>   Analyze a specific issue by number\n" +
-      "  -h, --help         Show this help message",
+      "  --issue <number>     Analyze a specific issue by number\n" +
+      "  --codex-auth <path>  Copy Codex auth.json into the agent container before running\n" +
+      "  -h, --help           Show this help message",
   );
 }
 
@@ -76,6 +77,7 @@ async function generatePlanViaAgent(
   _planConfig: PlanIssueConfig,
   agentConfig: AgentToolConfig | undefined,
   envConfig: ReturnType<typeof config>,
+  codexAuthPath: string | undefined,
 ) {
   const githubUsername = Deno.env.get("GITHUB_USERNAME") ?? envConfig.githubOwner;
   const baseRunnerEnv: Record<string, string> = {
@@ -100,6 +102,7 @@ async function generatePlanViaAgent(
     await runAgentHook(runner, "pre-work");
     await verifyGithubHttps(runner);
     const plan = await runAgent({
+      codexAuthPath,
       openAIApiKey: envConfig.openAIApiKey,
       prompt,
       runner,
@@ -119,8 +122,10 @@ export async function runPlanIssue(argv: string[]) {
   const cfg = config();
   let restArgs = argv;
   let issueNumberArg: number | undefined;
+  let codexAuthPath: string | undefined;
   try {
     ({ rest: restArgs, value: issueNumberArg } = readPositiveIntegerFlag(restArgs, "--issue"));
+    ({ rest: restArgs, value: codexAuthPath } = readFlag(restArgs, "--codex-auth"));
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     throw new CliError(message);
@@ -172,7 +177,7 @@ export async function runPlanIssue(argv: string[]) {
       : "<comments>No comments.</comments>",
   });
   const fullPrompt = composePrompt(systemInstructions, userPrompt);
-  const plan = await generatePlanViaAgent(fullPrompt, planConfig, agentConfig, cfg);
+  const plan = await generatePlanViaAgent(fullPrompt, planConfig, agentConfig, cfg, codexAuthPath);
   await github.addIssueComment(issue.id, plan);
   console.log(`Posted implementation plan to issue #${issue.number}.`);
 }

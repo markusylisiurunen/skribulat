@@ -1,8 +1,10 @@
+import { resolve } from "@std/path";
 import { DockerRunner } from "./docker.ts";
 import { AgentToolConfig } from "./project_config.ts";
 
 export type AgentExecutionContext = {
   anthropicApiKey?: string;
+  codexAuthPath?: string;
   openAIApiKey?: string;
   prompt: string;
   runner: DockerRunner;
@@ -58,18 +60,24 @@ async function runClaudeCodeAgent(
 }
 
 async function runCodexAgent(
-  { openAIApiKey, prompt, runner, workingDir }: AgentExecutionContext,
+  { codexAuthPath, openAIApiKey, prompt, runner, workingDir }: AgentExecutionContext,
   config: AgentToolConfig,
 ): Promise<string> {
-  if (!openAIApiKey) {
-    throw new Error("OPENAI_API_KEY is required for Codex agent.");
+  let usingAuthFile = false;
+  if (codexAuthPath && codexAuthPath.trim().length > 0) {
+    usingAuthFile = await copyCodexAuthFileToContainer(runner, codexAuthPath);
   }
-  const login = await runner.runBashCommand(
-    `echo "${openAIApiKey}" | codex login --with-api-key`,
-    { cwd: workingDir },
-  );
-  if (login.code !== 0) {
-    throw new Error(`Failed to login to Codex.\n${login.stderr}`);
+  if (!usingAuthFile) {
+    if (!openAIApiKey) {
+      throw new Error("OPENAI_API_KEY is required for Codex agent.");
+    }
+    const login = await runner.runBashCommand(
+      `echo "${openAIApiKey}" | codex login --with-api-key`,
+      { cwd: workingDir },
+    );
+    if (login.code !== 0) {
+      throw new Error(`Failed to login to Codex.\n${login.stderr}`);
+    }
   }
   const promptPath = "/tmp/skribulat-plan-prompt.txt";
   await copyPromptToContainer(prompt, runner, promptPath);
@@ -119,6 +127,61 @@ async function copyPromptToContainer(prompt: string, runner: DockerRunner, conta
   } finally {
     await Deno.remove(tempFile).catch(() => {});
   }
+}
+
+async function copyCodexAuthFileToContainer(
+  runner: DockerRunner,
+  hostPath: string,
+): Promise<boolean> {
+  const resolvedPath = resolve(expandHomeDirectory(hostPath));
+  let stat: Deno.FileInfo;
+  try {
+    stat = await Deno.stat(resolvedPath);
+  } catch (error) {
+    if (error instanceof Deno.errors.NotFound) {
+      console.warn(`Codex auth file not found at ${resolvedPath}. Falling back to API key.`);
+    } else {
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(`Unable to access Codex auth file at ${resolvedPath}: ${message}`);
+    }
+    return false;
+  }
+  if (!stat.isFile) {
+    console.warn(`Codex auth path is not a file: ${resolvedPath}. Falling back to API key.`);
+    return false;
+  }
+  const containerDir = "/root/.codex";
+  const mkdirResult = await runner.runBashCommand(`mkdir -p ${containerDir}`);
+  if (mkdirResult.code !== 0) {
+    console.warn(
+      `Failed to create Codex auth directory in container: ${mkdirResult.stderr.trim()}`,
+    );
+    return false;
+  }
+  try {
+    await runner.copyFromHost(resolvedPath, `${containerDir}/auth.json`);
+    console.log(`Copied Codex auth file into container from ${resolvedPath}.`);
+    return true;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn(`Failed to copy Codex auth file into container: ${message}`);
+    return false;
+  }
+}
+
+function expandHomeDirectory(path: string) {
+  if (path.startsWith("~/")) {
+    const home = Deno.env.get("HOME");
+    if (home && home.length > 0) {
+      return `${home}${path.slice(1)}`;
+    }
+  } else if (path === "~") {
+    const home = Deno.env.get("HOME");
+    if (home && home.length > 0) {
+      return home;
+    }
+  }
+  return path;
 }
 
 type CodexEvent =

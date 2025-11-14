@@ -32,9 +32,10 @@ function usage() {
   console.log(
     "Usage: skribulat work-on-pr [options]\n\n" +
       "Options:\n" +
-      "  --agent <tool>     Agent tool to use (codex, claude-code, shell)\n" +
-      "  --model <name>     Model name (e.g., gpt-5.1-codex, sonnet, haiku)\n" +
-      "  -h, --help         Show this help message",
+      "  --agent <tool>       Agent tool to use (codex, claude-code, shell)\n" +
+      "  --model <name>       Model name (e.g., gpt-5.1-codex, sonnet, haiku)\n" +
+      "  --codex-auth <path>  Copy Codex auth.json into the agent container before running\n" +
+      "  -h, --help           Show this help message",
   );
 }
 
@@ -199,8 +200,10 @@ export async function runWorkOnPr(argv: string[]) {
   let restArgs = argv;
   let agentArg: string | undefined;
   let modelArg: string | undefined;
+  let codexAuthPath: string | undefined;
   ({ rest: restArgs, value: agentArg } = readFlag(restArgs, "--agent"));
   ({ rest: restArgs, value: modelArg } = readFlag(restArgs, "--model"));
+  ({ rest: restArgs, value: codexAuthPath } = readFlag(restArgs, "--codex-auth"));
   if (restArgs.includes("-h") || restArgs.includes("--help")) {
     usage();
     return;
@@ -297,6 +300,7 @@ export async function runWorkOnPr(argv: string[]) {
     });
     await runAgent({
       anthropicApiKey: cfg.anthropicApiKey,
+      codexAuthPath,
       openAIApiKey: cfg.openAIApiKey,
       prompt,
       runner,
