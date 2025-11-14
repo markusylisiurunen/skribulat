@@ -56,7 +56,7 @@ Example `.skribulat/config.yaml`:
 ```yaml
 agent:
   tool: codex
-  model: gpt-5-codex
+  model: gpt-5.1-codex
   reasoning_effort: low
   env:
     AGENT_PROMPT_STYLE: "codex-default" # toggle shared by every command
@@ -88,7 +88,7 @@ work_on_issue:
 work_on_pr:
   agent:
     tool: codex
-    model: gpt-5-codex
+    model: gpt-5.1-codex
     env_passthrough:
       - REVIEW_WEBHOOK_TOKEN
 ```

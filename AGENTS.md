@@ -48,14 +48,14 @@ All scripts live under the `scripts` folder (e.g., `scripts/commit.ts`).
   `--agent`/`--model` overrides that are forwarded to the work step.
 - `work_on_issue.ts`: End-to-end issue implementation via agent (Codex, Claude Code, or shell).
   Supports `--issue <number>`, `--agent <tool>` (codex, claude-code, shell), and `--model <name>`
-  (e.g., gpt-5-codex, sonnet, haiku). Generates kebab-case branch name from issue metadata
+  (e.g., gpt-5.1-codex, sonnet, haiku). Generates kebab-case branch name from issue metadata
   (LLM-powered, max 50 chars, a-z/0-9/hyphens only). Fetches/creates branch. Clones repo into
   isolated Docker workspace at `/root/agent`. Runs pre-work hook. Agent implements changes, commits,
   pushes. Generates PR body from issue context + diff. Creates pull request against default branch.
   Preserves git patches to `.skribulat/patches/` with periodic checkpointing (every 30s during agent
   run).
 - `work_on_pr.ts`: Addresses PR review feedback via agent (Codex, Claude Code, or shell). Supports
-  `--agent <tool>` (codex, claude-code, shell) and `--model <name>` (e.g., gpt-5-codex, sonnet,
+  `--agent <tool>` (codex, claude-code, shell) and `--model <name>` (e.g., gpt-5.1-codex, sonnet,
   haiku). Interactive selection of PR, then checkbox selection of specific issue comments and review
   comment threads to focus on. Fetches associated issues (via `closingIssuesReferences`). Checks out
   PR branch in Docker workspace. Runs pre-work hook. Agent applies requested changes, commits,
