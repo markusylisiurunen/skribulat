@@ -184,7 +184,7 @@ function resolveAgentConfig(
   const config: AgentToolConfig = { ...base };
   if (cliOverrides?.agent) {
     const tool = cliOverrides.agent.toLowerCase();
-    if (tool === "codex" || tool === "claude-code" || tool === "shell") {
+    if (tool === "codex" || tool === "claude-code" || tool === "shell" || tool === "gemini") {
       config.tool = tool;
     }
   }
@@ -301,6 +301,7 @@ export async function runWorkOnPr(argv: string[]) {
     await runAgent({
       anthropicApiKey: cfg.anthropicApiKey,
       codexAuthPath,
+      geminiApiKey: cfg.geminiApiKey,
       openAIApiKey: cfg.openAIApiKey,
       prompt,
       runner,

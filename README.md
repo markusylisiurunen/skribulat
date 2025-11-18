@@ -15,8 +15,8 @@ Skribulat is a Deno-based command-line toolkit for AI-assisted repo workflows.
 ### Available commands
 
 - `build-agent-runner` – bake the Docker image that agents use (installs Node, Go, Deno, and agent
-  CLIs like `codex` and `claude`). Supports flags like `--image`, `--node-version`,
-  `--npm-packages`.
+  CLIs like `codex`, `claude-code`, and `gemini-cli`). Supports flags like `--image`,
+  `--node-version`, `--npm-packages`.
 - `commit` – propose staged-change commit subjects using OpenRouter models.
 - `exec` – translate a free-form instruction into a single shell command, then optionally execute
   it.
@@ -30,11 +30,12 @@ Skribulat is a Deno-based command-line toolkit for AI-assisted repo workflows.
 - `plan-and-work-on-issue` – run the planning workflow and immediately hand off to the
   implementation workflow with optional `--agent`/`--model` overrides for the work phase. Accepts
   `--codex-auth` and forwards it to both steps.
-- `work-on-issue` – spin up an agent (Codex, Claude Code, or shell) to implement a selected issue
-  end-to-end. Supports `--agent`, `--model`, and `--codex-auth` for supplying a host Codex
-  credential file instead of logging in with an API key.
-- `work-on-pr` – apply reviewer feedback to an open pull request via an agent run. Supports
-  `--agent`, `--model`, and `--codex-auth` for the same credential-file workflow.
+- `work-on-issue` – spin up an agent (Codex, Claude Code, Gemini CLI, or shell) to implement a
+  selected issue end-to-end. Supports `--agent`, `--model`, and `--codex-auth` for supplying a host
+  Codex credential file instead of logging in with an API key.
+- `work-on-pr` – apply reviewer feedback to an open pull request via an agent (Codex, Claude Code,
+  Gemini CLI, or shell) run. Supports `--agent`, `--model`, and `--codex-auth` for the same
+  credential-file workflow.
 
 Each script lives in `scripts/` and can be imported or executed directly with Deno if needed.
 
@@ -47,13 +48,13 @@ workflow. Each of these sections may include a nested `agent` block plus any com
 fields—Plan Issue, for example, understands `agents_directory_map`, `label_explanations`, and
 `tool_guidance`.
 
-An `agent` block accepts the following knobs: `tool` (`"codex"`, `"claude-code"`, or `"shell"`),
-`model`, `command` (used mainly when `tool: shell`), `reasoning_effort` (passed through to Codex),
-`env` for committed key/value pairs, and `env_passthrough` for the names of secrets you want copied
-from your current shell into the Docker container. When a command runs, Skribulat builds the runner
-environment by combining its built-in defaults (GitHub auth, DEBIAN_FRONTEND, etc.), the committed
-`env` values, and any pass-through variables that are set locally. This keeps secrets uncommitted
-while still documenting which ones are required.
+An `agent` block accepts the following knobs: `tool` (`"codex"`, `"claude-code"`, `"gemini"`, or
+`"shell"`), `model`, `command` (used mainly when `tool: shell`), `reasoning_effort` (passed through
+to Codex), `env` for committed key/value pairs, and `env_passthrough` for the names of secrets you
+want copied from your current shell into the Docker container. When a command runs, Skribulat builds
+the runner environment by combining its built-in defaults (GitHub auth, DEBIAN_FRONTEND, etc.), the
+committed `env` values, and any pass-through variables that are set locally. This keeps secrets
+uncommitted while still documenting which ones are required.
 
 Example `.skribulat/config.yaml`:
 
@@ -111,6 +112,7 @@ Hooks and agent artifacts live under `.skribulat/`:
 - `OPENROUTER_API_KEY` _(required)_ – used for all LLM completions.
 - `OPENAI_API_KEY` _(required for Codex runs)_ – passed into the Docker runner.
 - `ANTHROPIC_API_KEY` _(required for Claude Code runs)_ – passed into the Docker runner.
+- `GEMINI_API_KEY` _(required for Gemini runs)_ – passed into the Docker runner.
 - `GITHUB_TOKEN` _(required)_ – lets scripts call GitHub GraphQL/REST APIs.
 - `OPENROUTER_*`, `AGENT_RUNNER_*`, and other overrides can be exported in `.env` or `.env.secret`.
 
