@@ -103,6 +103,7 @@ async function generatePlanViaAgent(
     await verifyGithubHttps(runner);
     const plan = await runAgent({
       codexAuthPath,
+      googleAIStudioKey: envConfig.googleAIStudioKey,
       openAIApiKey: envConfig.openAIApiKey,
       prompt,
       runner,

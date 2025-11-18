@@ -7,7 +7,7 @@ export type AgentToolConfig = {
   envPassthrough?: string[];
   model?: string;
   reasoningEffort?: "minimal" | "low" | "medium" | "high";
-  tool?: "codex" | "claude-code" | "shell";
+  tool?: "codex" | "claude-code" | "gemini" | "shell";
 };
 
 export type AgentConfigSection = {
@@ -123,7 +123,7 @@ function normalizeAgentConfig(raw: Record<string, unknown>): AgentToolConfig {
   const agent: AgentToolConfig = {};
   if (typeof raw["tool"] === "string") {
     const tool = raw["tool"].toLowerCase();
-    if (tool === "codex" || tool === "claude-code" || tool === "shell") {
+    if (tool === "codex" || tool === "claude-code" || tool === "gemini" || tool === "shell") {
       agent.tool = tool;
     }
   }

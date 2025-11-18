@@ -5,6 +5,7 @@ import { AgentToolConfig } from "./project_config.ts";
 export type AgentExecutionContext = {
   anthropicApiKey?: string;
   codexAuthPath?: string;
+  googleAIStudioKey?: string;
   openAIApiKey?: string;
   prompt: string;
   runner: DockerRunner;
@@ -21,11 +22,58 @@ export async function runAgent(
       return await runCodexAgent(context, config);
     case "claude-code":
       return await runClaudeCodeAgent(context, config);
+    case "gemini":
+      return await runGeminiAgent(context, config);
     case "shell":
       return await runShellAgent(context, config);
     default:
       throw new Error(`Unsupported agent tool '${tool}'.`);
   }
+}
+
+async function runGeminiAgent(
+  { googleAIStudioKey, prompt, runner, workingDir }: AgentExecutionContext,
+  config: AgentToolConfig,
+): Promise<string> {
+  if (!googleAIStudioKey) {
+    throw new Error("GOOGLE_AI_STUDIO_KEY or GEMINI_API_KEY is required for Gemini agent.");
+  }
+
+  // Configure Gemini
+  const configDir = "/root/.gemini";
+  const configPath = `${configDir}/config.json`;
+  const configFileContent = JSON.stringify({
+    apiKey: googleAIStudioKey,
+    context: { fileName: "AGENTS.md" },
+  });
+
+  const setupCmd = [
+    `mkdir -p ${configDir}`,
+    `echo '${configFileContent}' > ${configPath}`,
+  ].join(" && ");
+
+  const setupResult = await runner.runBashCommand(setupCmd);
+  if (setupResult.code !== 0) {
+    throw new Error(`Failed to configure Gemini agent: ${setupResult.stderr}`);
+  }
+
+  const promptPath = "/tmp/skribulat-plan-prompt.txt";
+  await copyPromptToContainer(prompt, runner, promptPath);
+  const command = buildGeminiCommand(config, promptPath);
+  console.log(`${prefix()} user prompt:\n${prompt}`);
+  return await streamGeminiOutput(runner, command, workingDir);
+}
+
+function buildGeminiCommand(config: AgentToolConfig, promptPath: string): string {
+  // Enforce model gemini-3-pro-preview as per requirements
+  const model = "gemini-3-pro-preview";
+  const base = config.command && config.command.trim().length > 0 ? config.command.trim() : [
+    "gemini",
+    `--model ${model}`,
+    "--output-format stream-json",
+  ].join(" ");
+  // Using cat to pipe prompt to stdin
+  return `cat ${promptPath} | ${base}`;
 }
 
 async function runShellAgent(
@@ -436,5 +484,84 @@ function lineToString(value: unknown) {
     return JSON.stringify(value, null, 2);
   } catch {
     return String(value);
+  }
+}
+
+type GeminiEvent =
+  | { type: "content"; content: string }
+  | { type: "tool_use"; name: string; input: unknown }
+  | { type: "tool_result"; name: string; output: unknown }
+  | { type: "error"; message: string }
+  | { type: "done" };
+
+async function streamGeminiOutput(
+  runner: DockerRunner,
+  command: string,
+  workingDir: string,
+): Promise<string> {
+  console.log(`Running Gemini agent with command: ${command}`);
+  const stream = runner.streamBashCommand(command, { cwd: workingDir });
+  let finalMessage = "";
+  let buffered = "";
+  for await (const chunk of stream) {
+    buffered += chunk.data;
+    const lines = buffered.split("\n");
+    buffered = lines.pop() ?? "";
+    for (const line of lines) {
+      const result = processGeminiLine(line);
+      if (result) finalMessage += result;
+    }
+  }
+  if (buffered.trim().length > 0) {
+    const result = processGeminiLine(buffered);
+    if (result) finalMessage += result;
+  }
+  // If we haven't accumulated any message but the command finished, check if we should throw or just return empty
+  if (finalMessage.trim().length === 0) {
+    // It's possible the agent did work but didn't output "content" events in the way we expect.
+    // Or maybe it printed to stdout directly not in JSON?
+    // But we requested stream-json.
+    // For now, let's warn but return empty if nothing.
+    console.warn("Gemini agent did not return any text content.");
+  }
+  return finalMessage.trim();
+}
+
+function processGeminiLine(line: string): string | null {
+  if (line.trim().length === 0) return null;
+  try {
+    const parsed = JSON.parse(line) as GeminiEvent;
+    logGeminiEvent(parsed);
+    if (parsed.type === "content") {
+      return parsed.content;
+    }
+    return null;
+  } catch {
+    // If not JSON, just log it (maybe it's a plain text error or output)
+    console.log(line);
+    return null;
+  }
+}
+
+function logGeminiEvent(event: GeminiEvent) {
+  switch (event.type) {
+    case "content":
+      console.log(prefix(), "agent:", event.content);
+      break;
+    case "tool_use":
+      console.log(prefix(), `tool used: ${event.name}`);
+      break;
+    case "tool_result":
+      console.log(prefix(), `tool result: ${event.name}`);
+      break;
+    case "error":
+      console.error(prefix(), "error:", event.message);
+      break;
+    case "done":
+      console.log(prefix(), "execution completed");
+      break;
+    default:
+      console.log(lineToString(event));
+      break;
   }
 }

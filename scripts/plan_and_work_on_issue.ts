@@ -13,7 +13,7 @@ function usage() {
     "Usage: skribulat plan-and-work-on-issue [options]\n\n" +
       "Options:\n" +
       "  --issue <number>     Plan and work on a specific issue\n" +
-      "  --agent <tool>       Agent tool to use for implementation (codex, claude-code, shell)\n" +
+      "  --agent <tool>       Agent tool to use for implementation (codex, claude-code, gemini, shell)\n" +
       "  --model <name>       Model name passed to the work-on-issue step\n" +
       "  --codex-auth <path>  Copy Codex auth.json into the agent container before running\n" +
       "  -h, --help           Show this help message",
