@@ -16,6 +16,7 @@ export type Config = RepoInfo & {
   agentGitAuthor: { email: string; name: string };
   agentRunnerImage: string;
   anthropicApiKey: string;
+  geminiApiKey: string;
   githubToken: string;
   openAIApiKey: string;
   openRouterApiKey: string;
@@ -46,6 +47,7 @@ export function config(): Config {
   if (cachedConfig) return cachedConfig;
   const info = repoInfo();
   const anthropicApiKey = Deno.env.get("ANTHROPIC_API_KEY") ?? "";
+  const geminiApiKey = Deno.env.get("GEMINI_API_KEY") ?? "";
   const githubToken = Deno.env.get("GITHUB_TOKEN") ?? "";
   const openAIApiKey = Deno.env.get("OPENAI_API_KEY") ?? "";
   const openRouterApiKey = Deno.env.get("OPENROUTER_API_KEY") ?? "";
@@ -62,6 +64,7 @@ export function config(): Config {
     },
     agentRunnerImage,
     anthropicApiKey,
+    geminiApiKey,
     githubToken,
     openAIApiKey,
     openRouterApiKey,

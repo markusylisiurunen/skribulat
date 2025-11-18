@@ -1,5 +1,5 @@
 This repository hosts the Skribulat CLI: a Deno-based toolkit for automating repo workflows with LLM
-support via OpenRouter, OpenAI Codex, and Anthropic Claude Code agents.
+support via OpenRouter, OpenAI Codex, Anthropic Claude Code, and Google Gemini CLI agents.
 
 ## Scripts
 
@@ -7,10 +7,10 @@ All scripts live under the `scripts` folder (e.g., `scripts/commit.ts`).
 
 - `build_agent_runner.ts`: Builds the Docker image used by agents. Installs Ubuntu base with
   Node.js, Go, Deno, apt packages (git, ripgrep, fd-find, jq, etc.), and npm globals (defaults to
-  `@openai/codex` and `@anthropic-ai/claude-code`). Supports `--base-image`, `--node-version`,
-  `--go-version`, `--deno-version`, `--npm-packages`, `--apt-packages`, `--no-node`, `--no-go`,
-  `--no-deno` flags. Reads `AGENT_RUNNER_*` env vars. Final image tagged via `--image` or
-  `AGENT_RUNNER_IMAGE`.
+  `@openai/codex`, `@anthropic-ai/claude-code`, and `@google/gemini-cli`). Supports `--base-image`,
+  `--node-version`, `--go-version`, `--deno-version`, `--npm-packages`, `--apt-packages`,
+  `--no-node`, `--no-go`, `--no-deno` flags. Reads `AGENT_RUNNER_*` env vars. Final image tagged via
+  `--image` or `AGENT_RUNNER_IMAGE`.
 - `commit.ts`: Generates three AI-powered commit subject proposals from staged changes using
   OpenRouter (defaults to `google/gemini-2.5-flash-preview-09-2025`). Collects staged diff +
   optional branch diff (vs default branch) as context. Supports `-A` to stage all changes first,
@@ -49,22 +49,22 @@ All scripts live under the `scripts` folder (e.g., `scripts/commit.ts`).
   flow from `work_on_issue.ts`. Supports `--issue <number>` or interactive selection, optional
   `--agent`/`--model` overrides for the work step, and `--codex-auth <path>` which is forwarded to
   both plan and work phases.
-- `work_on_issue.ts`: End-to-end issue implementation via agent (Codex, Claude Code, or shell).
-  Supports `--issue <number>`, `--agent <tool>` (codex, claude-code, shell), `--model <name>` (e.g.,
-  gpt-5.1-codex, sonnet, haiku), and `--codex-auth <path>` for copying host Codex credentials into
-  the container instead of logging in with an API key. Generates kebab-case branch name from issue
-  metadata (LLM-powered, max 50 chars, a-z/0-9/hyphens only). Fetches/creates branch. Clones repo
-  into isolated Docker workspace at `/root/agent`. Runs pre-work hook. Agent implements changes,
-  commits, pushes. Generates PR body from issue context + diff. Creates pull request against default
-  branch. Preserves git patches to `.skribulat/patches/` with periodic checkpointing (every 30s
-  during agent run).
-- `work_on_pr.ts`: Addresses PR review feedback via agent (Codex, Claude Code, or shell). Supports
-  `--agent <tool>` (codex, claude-code, shell), `--model <name>` (e.g., gpt-5.1-codex, sonnet,
-  haiku), and `--codex-auth <path>` for copying Codex `auth.json` from the host. Interactive
-  selection of PR, then checkbox selection of specific issue comments and review comment threads to
-  focus on. Fetches associated issues (via `closingIssuesReferences`). Checks out PR branch in
-  Docker workspace. Runs pre-work hook. Agent applies requested changes, commits, pushes. Preserves
-  patches.
+- `work_on_issue.ts`: End-to-end issue implementation via agent (Codex, Claude Code, Gemini CLI, or
+  shell). Supports `--issue <number>`, `--agent <tool>` (codex, claude-code, gemini, shell),
+  `--model <name>` (e.g., gpt-5.1-codex, sonnet, haiku), and `--codex-auth <path>` for copying host
+  Codex credentials into the container instead of logging in with an API key. Generates kebab-case
+  branch name from issue metadata (LLM-powered, max 50 chars, a-z/0-9/hyphens only). Fetches/creates
+  branch. Clones repo into isolated Docker workspace at `/root/agent`. Runs pre-work hook. Agent
+  implements changes, commits, pushes. Generates PR body from issue context + diff. Creates pull
+  request against default branch. Preserves git patches to `.skribulat/patches/` with periodic
+  checkpointing (every 30s during agent run).
+- `work_on_pr.ts`: Addresses PR review feedback via agent (Codex, Claude Code, Gemini CLI, or
+  shell). Supports `--agent <tool>` (codex, claude-code, gemini, shell), `--model <name>` (e.g.,
+  gpt-5.1-codex, sonnet, haiku), and `--codex-auth <path>` for copying Codex `auth.json` from the
+  host. Interactive selection of PR, then checkbox selection of specific issue comments and review
+  comment threads to focus on. Fetches associated issues (via `closingIssuesReferences`). Checks out
+  PR branch in Docker workspace. Runs pre-work hook. Agent applies requested changes, commits,
+  pushes. Preserves patches.
 
 ## Utility files
 
@@ -72,9 +72,9 @@ All utility files live under the `utils` folder.
 
 - `agent_patch.ts`: Captures and preserves git diffs from agent runs for audit and rollback.
   Supports periodic checkpointing during execution (default 30s intervals).
-- `agent_runner.ts`: Orchestrates agent execution with three modes: Codex (OpenAI CLI), Claude Code
-  (Anthropic CLI), or shell (custom command). Handles authentication, streams execution progress,
-  returns final agent output.
+- `agent_runner.ts`: Orchestrates agent execution with four modes: Codex (OpenAI CLI), Claude Code
+  (Anthropic CLI), Gemini CLI (Google CLI), or shell (custom command). Handles authentication,
+  streams execution progress, returns final agent output.
 - `agent_workspace.ts`: Prepares isolated git workspace in Docker for agent runs. Clones repo to
   `/root/agent`, configures git credentials for HTTPS operations, validates GitHub authentication.
 - `config.ts`: Central configuration loader for repo metadata and environment variables.
@@ -116,7 +116,7 @@ All utility files live under the `utils` folder.
 
 - `.skribulat/config.yaml`: Defines agent defaults consumed by `utils/project_config.ts`. Each
   `agent` block (global or command-specific) can provide:
-  - `tool`: `"codex"`, `"claude-code"`, or `"shell"` (default `codex` if omitted).
+  - `tool`: `"codex"`, `"claude-code"`, `"gemini"`, or `"shell"` (default `codex` if omitted).
   - `model`, `command`, and `reasoning_effort` overrides passed to the selected agent CLI.
   - `env`: committed key/value pairs that are injected into the Docker runner environment.
   - `env_passthrough`: a list of environment variable names that should be copied from the caller's

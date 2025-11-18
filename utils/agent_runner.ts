@@ -5,6 +5,7 @@ import { AgentToolConfig } from "./project_config.ts";
 export type AgentExecutionContext = {
   anthropicApiKey?: string;
   codexAuthPath?: string;
+  geminiApiKey?: string;
   openAIApiKey?: string;
   prompt: string;
   runner: DockerRunner;
@@ -21,10 +22,187 @@ export async function runAgent(
       return await runCodexAgent(context, config);
     case "claude-code":
       return await runClaudeCodeAgent(context, config);
+    case "gemini":
+      return await runGeminiAgent(context, config);
     case "shell":
       return await runShellAgent(context, config);
     default:
       throw new Error(`Unsupported agent tool '${tool}'.`);
+  }
+}
+
+async function runGeminiAgent(
+  { geminiApiKey, prompt, runner, workingDir }: AgentExecutionContext,
+  config: AgentToolConfig,
+): Promise<string> {
+  if (!geminiApiKey) {
+    throw new Error("GEMINI_API_KEY is required for Gemini agent.");
+  }
+
+  // Inject system defaults
+  const systemDefaults = {
+    apiKey: geminiApiKey,
+    context: {
+      fileName: "AGENTS.md",
+      discoveryMaxDirs: 512,
+    },
+    experimental: {
+      useModelRouter: false,
+      codebaseInvestigatorSettings: {
+        enabled: true,
+        maxNumTurns: 32,
+        maxTimeMinutes: 10,
+        model: "gemini-3-pro-preview",
+      },
+    },
+    model: {
+      name: "gemini-3-pro-preview",
+      maxSessionTurns: -1,
+    },
+    tools: {
+      useRipgrep: true,
+    },
+  };
+  const tempFile = await Deno.makeTempFile({ prefix: "gemini-defaults-", suffix: ".json" });
+  await Deno.writeTextFile(tempFile, JSON.stringify(systemDefaults, null, 2));
+  try {
+    await runner.runBashCommand("mkdir -p /etc/gemini-cli");
+    await runner.copyFromHost(tempFile, "/etc/gemini-cli/system-defaults.json");
+  } finally {
+    await Deno.remove(tempFile).catch(() => {});
+  }
+
+  const promptPath = "/tmp/skribulat-plan-prompt.txt";
+  await copyPromptToContainer(prompt, runner, promptPath);
+
+  const baseCommand = config.command && config.command.trim().length > 0
+    ? config.command.trim()
+    : `gemini -o stream-json --yolo -p -`;
+
+  const command = buildCommand(baseCommand, promptPath);
+  console.log(`${prefix()} user prompt:\n${prompt}`);
+  return await streamGeminiOutput(runner, command, workingDir);
+}
+
+type GeminiEvent =
+  | { type: "init"; timestamp: string; session_id: string; model: string }
+  | { type: "message"; role: "user" | "assistant"; content: string; delta?: boolean }
+  | { type: "tool_use"; tool_name: string; tool_id: string; parameters: unknown }
+  | { type: "tool_result"; tool_id: string; status: string; output: string }
+  | {
+    type: "result";
+    status: string;
+    stats: {
+      total_tokens: number;
+      input_tokens: number;
+      output_tokens: number;
+      duration_ms: number;
+      tool_calls: number;
+    };
+  };
+
+async function streamGeminiOutput(
+  runner: DockerRunner,
+  command: string,
+  workingDir: string,
+): Promise<string> {
+  console.log(`Running Gemini agent with command: ${command}`);
+  const stream = runner.streamBashCommand(command, { cwd: workingDir });
+  let finalMessage = "";
+  let buffered = "";
+
+  for await (const chunk of stream) {
+    buffered += chunk.data;
+    const lines = buffered.split("\n");
+    buffered = lines.pop() ?? "";
+    for (const line of lines) {
+      const result = processGeminiLine(line);
+      if (result) finalMessage += result;
+    }
+  }
+  if (buffered.trim().length > 0) {
+    const result = processGeminiLine(buffered);
+    if (result) finalMessage += result;
+  }
+
+  // If we captured no text but the command finished, it might be a tool-only run,
+  // but usually there's some output.
+  // Unlike Codex/Claude, Gemini stream chunks are deltas we accumulated.
+  return finalMessage.trim();
+}
+
+function processGeminiLine(line: string): string | null {
+  if (line.trim().length === 0) return null;
+  try {
+    const parsed = JSON.parse(line) as GeminiEvent;
+    logGeminiEvent(parsed);
+    if (parsed.type === "message" && parsed.role === "assistant") {
+      return parsed.content;
+    }
+    return null;
+  } catch {
+    console.log(line);
+    return null;
+  }
+}
+
+function logGeminiEvent(event: GeminiEvent) {
+  switch (event.type) {
+    case "init":
+      console.log(prefix(), `session started: ${event.session_id} (${event.model})`);
+      break;
+    case "message":
+      if (event.role === "assistant" && event.content) {
+        // Stream content to stdout to mimic real-time typing without excessive newlines
+        Deno.stdout.writeSync(new TextEncoder().encode(event.content));
+      }
+      break;
+    case "tool_use":
+      // Ensure we start on a new line if we were streaming text
+      console.log("\n" + prefix(), `tool use: ${event.tool_name}`);
+      if (event.parameters) {
+        console.log(JSON.stringify(event.parameters, null, 2));
+      }
+      break;
+    case "tool_result":
+      console.log(prefix(), `tool result (${event.status})`);
+      break;
+    case "result": {
+      console.log("\n" + prefix(), `execution completed (${event.status})`);
+      if (event.stats) {
+        const { input_tokens, output_tokens } = event.stats;
+        console.log(prefix(), "usage:");
+        console.log(`  input tokens: ${input_tokens}`);
+        console.log(`  output tokens: ${output_tokens}`);
+
+        // Cost estimation
+        // Assumptions:
+        // - Input: $2.00 / 1M
+        // - Output: $12.00 / 1M
+        // - Cache hit rate: 94%
+        // - Cache discount: 90% (price is 10% of base input)
+
+        const cacheHitRate = 0.94;
+        const cachedTokens = input_tokens * cacheHitRate;
+        const uncachedTokens = input_tokens * (1 - cacheHitRate);
+
+        const priceInputBase = 2.00;
+        const priceInputCached = 2.00 * 0.10; // 90% discount
+        const priceOutput = 12.00;
+
+        const costInput = (uncachedTokens * priceInputBase + cachedTokens * priceInputCached) /
+          1_000_000;
+        const costOutput = (output_tokens * priceOutput) / 1_000_000;
+        const estimatedCost = costInput + costOutput;
+
+        console.log(`  estimated cost: $${estimatedCost.toFixed(6)}`);
+      }
+      break;
+    }
+    default:
+      // Log unknown events exactly as they are
+      console.log("\n" + lineToString(event));
+      break;
   }
 }
 

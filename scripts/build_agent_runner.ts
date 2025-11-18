@@ -6,7 +6,11 @@ import { printCliError } from "../utils/errors.ts";
 const DEFAULT_BASE_IMAGE = "ubuntu:25.10";
 const DEFAULT_NODE_VERSION = "24.11.0";
 const DEFAULT_GO_VERSION = "1.25.4";
-const DEFAULT_NPM_PACKAGES = ["@openai/codex", "@anthropic-ai/claude-code"];
+const DEFAULT_NPM_PACKAGES = [
+  "@openai/codex",
+  "@anthropic-ai/claude-code",
+  "@google/gemini-cli@latest",
+];
 
 const BASE_APT_PACKAGES = [
   "bash",
