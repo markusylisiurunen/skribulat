@@ -20,6 +20,8 @@ Skribulat is a Deno-based command-line toolkit for AI-assisted repo workflows.
 - `commit` – propose staged-change commit subjects using OpenRouter models.
 - `exec` – translate a free-form instruction into a single shell command, then optionally execute
   it.
+- `review` – generate an optimized code review prompt from a git diff (piped via stdin), including
+  full content of modified files.
 - `markdown-codebase` – render git-visible files (tracked plus untracked, non-ignored) as Markdown
   or emit stats.
 - `ask-codebase` – capture the same filtered snapshot and forward it, along with your question, to

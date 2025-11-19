@@ -4,6 +4,7 @@ import execCommandSystem from "./exec_command_system.ts";
 import execCommandUser from "./exec_command_user.ts";
 import planIssueSystem from "./plan_issue_system.ts";
 import planIssueUser from "./plan_issue_user.ts";
+import reviewUser from "./review_user.ts";
 import workOnIssue from "./work_on_issue.ts";
 import workOnPr from "./work_on_pr.ts";
 
@@ -14,6 +15,7 @@ export const PROMPT_TEMPLATES: Record<string, string> = {
   "exec_command_user.txt": execCommandUser,
   "plan_issue_system.txt": planIssueSystem,
   "plan_issue_user.txt": planIssueUser,
+  "review_user.txt": reviewUser,
   "work_on_issue.txt": workOnIssue,
   "work_on_pr.txt": workOnPr,
 };

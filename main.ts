@@ -5,6 +5,7 @@ import { runExec } from "./scripts/exec.ts";
 import { runMarkdownCodebase } from "./scripts/markdown_codebase.ts";
 import { runPlanIssue } from "./scripts/plan_issue.ts";
 import { runPlanAndWorkOnIssue } from "./scripts/plan_and_work_on_issue.ts";
+import { runReview } from "./scripts/review.ts";
 import { runWorkOnIssue } from "./scripts/work_on_issue.ts";
 import { runWorkOnPr } from "./scripts/work_on_pr.ts";
 import { CliError, printCliError } from "./utils/errors.ts";
@@ -19,6 +20,7 @@ const COMMANDS: Record<string, CommandHandler> = {
   "markdown-codebase": runMarkdownCodebase,
   "plan-issue": runPlanIssue,
   "plan-and-work-on-issue": runPlanAndWorkOnIssue,
+  "review": runReview,
   "work-on-issue": runWorkOnIssue,
   "work-on-pr": runWorkOnPr,
 };
@@ -34,6 +36,7 @@ function printUsage() {
       `  markdown-codebase       Emit a markdown snapshot of the tracked files under the current directory.\n` +
       `  plan-issue              Analyze an issue and post an implementation plan.\n` +
       `  plan-and-work-on-issue  Run planning and implementation for an issue sequentially.\n` +
+      `  review                  Generate a code review prompt from a git diff.\n` +
       `  work-on-issue           Spin up an agent to implement an issue branch and PR.\n` +
       `  work-on-pr              Address feedback on an existing pull request via agent.\n` +
       `\nRun 'skribulat <command> --help' for command-specific options.`,

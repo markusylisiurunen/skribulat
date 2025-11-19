@@ -49,6 +49,9 @@ All scripts live under the `scripts` folder (e.g., `scripts/commit.ts`).
   flow from `work_on_issue.ts`. Supports `--issue <number>` or interactive selection, optional
   `--agent`/`--model` overrides for the work step, and `--codex-auth <path>` which is forwarded to
   both plan and work phases.
+- `review.ts`: Generates an optimized code review prompt by consuming a git diff from stdin. Parses
+  the diff to identify modified files and includes their full content along with the diff itself in
+  the prompt. Designed to be piped to an LLM.
 - `work_on_issue.ts`: End-to-end issue implementation via agent (Codex, Claude Code, or shell).
   Supports `--issue <number>`, `--agent <tool>` (codex, claude-code, shell), `--model <name>` (e.g.,
   gpt-5.1-codex, sonnet, haiku), and `--codex-auth <path>` for copying host Codex credentials into
