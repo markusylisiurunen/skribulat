@@ -17,6 +17,7 @@ export type Config = RepoInfo & {
   agentRunnerImage: string;
   anthropicApiKey: string;
   githubToken: string;
+  googleAIStudioKey: string;
   openAIApiKey: string;
   openRouterApiKey: string;
 };
@@ -47,6 +48,8 @@ export function config(): Config {
   const info = repoInfo();
   const anthropicApiKey = Deno.env.get("ANTHROPIC_API_KEY") ?? "";
   const githubToken = Deno.env.get("GITHUB_TOKEN") ?? "";
+  const googleAIStudioKey = Deno.env.get("GOOGLE_AI_STUDIO_KEY") ??
+    Deno.env.get("GEMINI_API_KEY") ?? "";
   const openAIApiKey = Deno.env.get("OPENAI_API_KEY") ?? "";
   const openRouterApiKey = Deno.env.get("OPENROUTER_API_KEY") ?? "";
   const runnerImageEnv = Deno.env.get("AGENT_RUNNER_IMAGE") ?? Deno.env.get("CODEX_RUNNER_IMAGE");
@@ -63,6 +66,7 @@ export function config(): Config {
     agentRunnerImage,
     anthropicApiKey,
     githubToken,
+    googleAIStudioKey,
     openAIApiKey,
     openRouterApiKey,
   };

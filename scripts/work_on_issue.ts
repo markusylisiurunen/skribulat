@@ -35,7 +35,7 @@ function usage() {
     "Usage: skribulat work-on-issue [options]\n\n" +
       "Options:\n" +
       "  --issue <number>     Start working on a specific issue\n" +
-      "  --agent <tool>       Agent tool to use (codex, claude-code, shell)\n" +
+      "  --agent <tool>       Agent tool to use (codex, claude-code, gemini, shell)\n" +
       "  --model <name>       Model name (e.g., gpt-5.1-codex, sonnet, haiku)\n" +
       "  --codex-auth <path>  Copy Codex auth.json into the agent container before running\n" +
       "  -h, --help           Show this help message",
@@ -228,7 +228,7 @@ function resolveAgentConfig(
   const config: AgentToolConfig = { ...base };
   if (cliOverrides?.agent) {
     const tool = cliOverrides.agent.toLowerCase();
-    if (tool === "codex" || tool === "claude-code" || tool === "shell") {
+    if (tool === "codex" || tool === "claude-code" || tool === "gemini" || tool === "shell") {
       config.tool = tool;
     }
   }
@@ -343,6 +343,7 @@ export async function runWorkOnIssue(argv: string[]) {
     await runAgent({
       anthropicApiKey: cfg.anthropicApiKey,
       codexAuthPath,
+      googleAIStudioKey: cfg.googleAIStudioKey,
       openAIApiKey: cfg.openAIApiKey,
       prompt: fullPrompt,
       runner,
