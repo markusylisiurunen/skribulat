@@ -54,15 +54,15 @@ All scripts live under the `scripts` folder (e.g., `scripts/commit.ts`).
   the prompt. Designed to be piped to an LLM.
 - `work_on_issue.ts`: End-to-end issue implementation via agent (Codex, Claude Code, or shell).
   Supports `--issue <number>`, `--agent <tool>` (codex, claude-code, shell), `--model <name>` (e.g.,
-  gpt-5.1-codex, sonnet, haiku), and `--codex-auth <path>` for copying host Codex credentials into
-  the container instead of logging in with an API key. Generates kebab-case branch name from issue
-  metadata (LLM-powered, max 50 chars, a-z/0-9/hyphens only). Fetches/creates branch. Clones repo
-  into isolated Docker workspace at `/root/agent`. Runs pre-work hook. Agent implements changes,
-  commits, pushes. Generates PR body from issue context + diff. Creates pull request against default
-  branch. Preserves git patches to `.skribulat/patches/` with periodic checkpointing (every 30s
-  during agent run).
+  gpt-5.1-codex-max, sonnet, haiku), and `--codex-auth <path>` for copying host Codex credentials
+  into the container instead of logging in with an API key. Generates kebab-case branch name from
+  issue metadata (LLM-powered, max 50 chars, a-z/0-9/hyphens only). Fetches/creates branch. Clones
+  repo into isolated Docker workspace at `/root/agent`. Runs pre-work hook. Agent implements
+  changes, commits, pushes. Generates PR body from issue context + diff. Creates pull request
+  against default branch. Preserves git patches to `.skribulat/patches/` with periodic checkpointing
+  (every 30s during agent run).
 - `work_on_pr.ts`: Addresses PR review feedback via agent (Codex, Claude Code, or shell). Supports
-  `--agent <tool>` (codex, claude-code, shell), `--model <name>` (e.g., gpt-5.1-codex, sonnet,
+  `--agent <tool>` (codex, claude-code, shell), `--model <name>` (e.g., gpt-5.1-codex-max, sonnet,
   haiku), and `--codex-auth <path>` for copying Codex `auth.json` from the host. Interactive
   selection of PR, then checkbox selection of specific issue comments and review comment threads to
   focus on. Fetches associated issues (via `closingIssuesReferences`). Checks out PR branch in

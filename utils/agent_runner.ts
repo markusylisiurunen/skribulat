@@ -99,7 +99,7 @@ function buildClaudeCodeCommand(config: AgentToolConfig, promptPath: string): st
 }
 
 function buildCodexCommand(config: AgentToolConfig, promptPath: string): string {
-  const model = config.model ?? "gpt-5.1-codex";
+  const model = config.model ?? "gpt-5.1-codex-max";
   const reasoningEffort = config.reasoningEffort ?? "low";
   const base = config.command && config.command.trim().length > 0 ? config.command.trim() : [
     "codex exec --json",
@@ -318,7 +318,7 @@ function logCodexEvent(event: CodexEvent) {
       console.log(prefix(), "usage:");
       console.log(`  input tokens: ${input_tokens} (cached: ${cached_input_tokens})`);
       console.log(`  output tokens: ${output_tokens}`);
-      // TODO: these are hardcoded for gpt-5.1-codex; make configurable
+      // TODO: these are hardcoded for gpt-5.1-codex-max; make configurable
       const per1MInputTokens = 1.25;
       const per1MCachedInputTokens = 0.125;
       const per1MOutputTokens = 10.0;
