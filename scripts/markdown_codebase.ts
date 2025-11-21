@@ -1,4 +1,4 @@
-import { CliError, printCliError } from "../utils/errors.ts";
+import { estimateTokenCount } from "tokenx";
 import {
   buildFilteredFileEntries,
   countLines,
@@ -6,7 +6,7 @@ import {
   renderDirectoryStructure,
   renderFileBlocks,
 } from "../utils/codebase_snapshot.ts";
-import { estimateTokenCount } from "tokenx";
+import { CliError, printCliError } from "../utils/errors.ts";
 
 const textEncoder = new TextEncoder();
 

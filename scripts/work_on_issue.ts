@@ -1,31 +1,31 @@
-import { join } from "@std/path";
 import { select } from "@inquirer/prompts";
-import { loadEnv } from "../utils/env.ts";
-import { config } from "../utils/config.ts";
-import { createGitHubClient, GitHubIssueComment, GitHubIssueSummary } from "../utils/github.ts";
-import { fitInConsoleWidth } from "../utils/text.ts";
-import { generateCompletion } from "../utils/llm.ts";
-import { loadPrompt, renderPrompt } from "../utils/prompts.ts";
-import {
-  explainIssueLabels,
-  formatAgentsGuidance,
-  instructEfficientToolUse,
-} from "../utils/guidance.ts";
-import { readFlag, readPositiveIntegerFlag } from "../utils/flags.ts";
-import { AgentToolConfig, loadProjectConfig } from "../utils/project_config.ts";
-import { DockerRunner } from "../utils/docker.ts";
+import { join } from "@std/path";
 import { buildRunnerEnv } from "../utils/agent_env.ts";
+import { preserveGitPatch, startPatchCheckpoint } from "../utils/agent_patch.ts";
+import { runAgent } from "../utils/agent_runner.ts";
 import {
   AGENT_WORKDIR,
   HOST_REPO_MOUNT,
   setupAgentWorkspace,
   verifyGithubHttps,
 } from "../utils/agent_workspace.ts";
-import { runAgent } from "../utils/agent_runner.ts";
-import { runAgentHook } from "../utils/hooks.ts";
-import { preserveGitPatch, startPatchCheckpoint } from "../utils/agent_patch.ts";
-import { SKRIBULAT_PATCHES_SUBDIR, skribulatPath } from "../utils/paths.ts";
+import { config } from "../utils/config.ts";
+import { DockerRunner } from "../utils/docker.ts";
+import { loadEnv } from "../utils/env.ts";
 import { CliError, printCliError } from "../utils/errors.ts";
+import { readFlag, readPositiveIntegerFlag } from "../utils/flags.ts";
+import { createGitHubClient, GitHubIssueComment, GitHubIssueSummary } from "../utils/github.ts";
+import {
+  explainIssueLabels,
+  formatAgentsGuidance,
+  instructEfficientToolUse,
+} from "../utils/guidance.ts";
+import { runAgentHook } from "../utils/hooks.ts";
+import { generateCompletion } from "../utils/llm.ts";
+import { SKRIBULAT_PATCHES_SUBDIR, skribulatPath } from "../utils/paths.ts";
+import { AgentToolConfig, loadProjectConfig } from "../utils/project_config.ts";
+import { loadPrompt, renderPrompt } from "../utils/prompts.ts";
+import { fitInConsoleWidth } from "../utils/text.ts";
 
 const BRANCH_MODEL = "google/gemini-2.5-flash-preview-09-2025";
 const PR_BODY_MODEL = "google/gemini-2.5-flash-preview-09-2025";

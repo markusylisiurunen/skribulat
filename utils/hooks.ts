@@ -1,6 +1,6 @@
+import { join } from "@std/path";
 import { DockerRunner } from "./docker.ts";
 import { SKRIBULAT_DIRNAME, SKRIBULAT_HOOKS_SUBDIR } from "./paths.ts";
-import { join } from "@std/path";
 
 const textEncoder = new TextEncoder();
 

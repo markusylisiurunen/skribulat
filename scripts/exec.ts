@@ -1,8 +1,8 @@
 import { join } from "@std/path";
 import { loadEnv } from "../utils/env.ts";
+import { CliError, printCliError } from "../utils/errors.ts";
 import { generateCompletion } from "../utils/llm.ts";
 import { loadPrompt, renderPrompt } from "../utils/prompts.ts";
-import { CliError, printCliError } from "../utils/errors.ts";
 
 const ALLOWED_MODELS = [
   "anthropic/claude-sonnet-4.5",

@@ -1,9 +1,9 @@
-import { loadEnv } from "../utils/env.ts";
 import { config } from "../utils/config.ts";
+import { loadEnv } from "../utils/env.ts";
+import { printCliError } from "../utils/errors.ts";
+import { runGit } from "../utils/git.ts";
 import { generateCompletion } from "../utils/llm.ts";
 import { loadPrompt, renderPrompt } from "../utils/prompts.ts";
-import { runGit } from "../utils/git.ts";
-import { printCliError } from "../utils/errors.ts";
 
 const GENERATION_MODEL = "google/gemini-2.5-flash-preview-09-2025";
 const DIFF_CHAR_LIMIT = 32_000;

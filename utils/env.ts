@@ -1,5 +1,5 @@
-import { dirname, join, relative, resolve as resolvePath } from "@std/path";
 import { load } from "@std/dotenv";
+import { dirname, join, relative, resolve as resolvePath } from "@std/path";
 import { resolveRepoRoot } from "./git.ts";
 
 type LoadEnvOptions = {

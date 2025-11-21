@@ -1,7 +1,10 @@
+type ChatMessage = { role: "system" | "user" | "assistant"; content: string };
+
 type GenerateCompletionArgs = {
   maxTokens?: number;
+  messages?: ChatMessage[];
   model: string;
-  prompt: string;
+  prompt?: string;
   reasoningEffort?: "minimal" | "low" | "medium" | "high";
   reasoningMaxTokens?: number;
   systemInstructions?: string;
@@ -13,9 +16,23 @@ export async function generateCompletion(args: GenerateCompletionArgs) {
   if (!apiKey) {
     throw new Error("OPENROUTER_API_KEY is not set.");
   }
-  const messages: Array<{ content: string; role: "system" | "user" }> = [];
-  if (args.systemInstructions) messages.push({ role: "system", content: args.systemInstructions });
-  messages.push({ role: "user", content: args.prompt });
+  const messages: ChatMessage[] = [];
+  if (args.messages && args.messages.length > 0) {
+    messages.push(...args.messages);
+  } else {
+    if (args.systemInstructions) {
+      messages.push({ role: "system", content: args.systemInstructions });
+    }
+    if (args.prompt) {
+      messages.push({ role: "user", content: args.prompt });
+    }
+  }
+  if (messages.length === 0) {
+    throw new Error("generateCompletion requires either messages or prompt.");
+  }
+  if (args.systemInstructions && args.messages && args.messages.length > 0) {
+    messages.unshift({ role: "system", content: args.systemInstructions });
+  }
   let reasoning: Record<string, unknown> = { enabled: false };
   if ((args.reasoningMaxTokens ?? 0) > 0) {
     reasoning = { enabled: true, max_tokens: args.reasoningMaxTokens };
@@ -28,7 +45,7 @@ export async function generateCompletion(args: GenerateCompletionArgs) {
       messages,
       model: args.model,
       reasoning,
-      temperature: args.temperature ?? 1,
+      temperature: args.temperature,
     }),
     headers: {
       "Authorization": `Bearer ${apiKey}`,

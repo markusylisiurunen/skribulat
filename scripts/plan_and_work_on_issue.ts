@@ -1,12 +1,12 @@
 import { select } from "@inquirer/prompts";
-import { runPlanIssue } from "./plan_issue.ts";
-import { runWorkOnIssue } from "./work_on_issue.ts";
-import { loadEnv } from "../utils/env.ts";
 import { config } from "../utils/config.ts";
+import { loadEnv } from "../utils/env.ts";
+import { CliError, printCliError } from "../utils/errors.ts";
+import { readFlag, readPositiveIntegerFlag } from "../utils/flags.ts";
 import { createGitHubClient, GitHubIssueSummary } from "../utils/github.ts";
 import { fitInConsoleWidth } from "../utils/text.ts";
-import { readFlag, readPositiveIntegerFlag } from "../utils/flags.ts";
-import { CliError, printCliError } from "../utils/errors.ts";
+import { runPlanIssue } from "./plan_issue.ts";
+import { runWorkOnIssue } from "./work_on_issue.ts";
 
 function usage() {
   console.log(

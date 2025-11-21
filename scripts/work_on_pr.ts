@@ -1,7 +1,19 @@
-import { join } from "@std/path";
 import { checkbox, select } from "@inquirer/prompts";
-import { loadEnv } from "../utils/env.ts";
+import { join } from "@std/path";
+import { buildRunnerEnv } from "../utils/agent_env.ts";
+import { preserveGitPatch, startPatchCheckpoint } from "../utils/agent_patch.ts";
+import { runAgent } from "../utils/agent_runner.ts";
+import {
+  AGENT_WORKDIR,
+  HOST_REPO_MOUNT,
+  setupAgentWorkspace,
+  verifyGithubHttps,
+} from "../utils/agent_workspace.ts";
 import { config } from "../utils/config.ts";
+import { DockerRunner } from "../utils/docker.ts";
+import { loadEnv } from "../utils/env.ts";
+import { CliError, printCliError } from "../utils/errors.ts";
+import { readFlag } from "../utils/flags.ts";
 import {
   createGitHubClient,
   GitHubAssociatedIssue,
@@ -9,24 +21,12 @@ import {
   GitHubPullRequestSummary,
   GitHubReviewComment,
 } from "../utils/github.ts";
-import { fitInConsoleWidth } from "../utils/text.ts";
-import { loadPrompt, renderPrompt } from "../utils/prompts.ts";
 import { explainIssueLabels, formatAgentsGuidance } from "../utils/guidance.ts";
-import { readFlag } from "../utils/flags.ts";
-import { AgentToolConfig, loadProjectConfig } from "../utils/project_config.ts";
-import { DockerRunner } from "../utils/docker.ts";
-import { buildRunnerEnv } from "../utils/agent_env.ts";
-import {
-  AGENT_WORKDIR,
-  HOST_REPO_MOUNT,
-  setupAgentWorkspace,
-  verifyGithubHttps,
-} from "../utils/agent_workspace.ts";
-import { runAgent } from "../utils/agent_runner.ts";
 import { runAgentHook } from "../utils/hooks.ts";
-import { preserveGitPatch, startPatchCheckpoint } from "../utils/agent_patch.ts";
 import { SKRIBULAT_PATCHES_SUBDIR, skribulatPath } from "../utils/paths.ts";
-import { CliError, printCliError } from "../utils/errors.ts";
+import { AgentToolConfig, loadProjectConfig } from "../utils/project_config.ts";
+import { loadPrompt, renderPrompt } from "../utils/prompts.ts";
+import { fitInConsoleWidth } from "../utils/text.ts";
 
 function usage() {
   console.log(
