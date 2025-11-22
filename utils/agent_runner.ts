@@ -106,6 +106,7 @@ function buildCodexCommand(config: AgentToolConfig, promptPath: string): string 
     "--dangerously-bypass-approvals-and-sandbox",
     `--model ${model}`,
     `-c shell_environment_policy.ignore_default_excludes=true`,
+    `-c tool_output_token_limit=8192`,
     `-c model_reasoning_effort=\"${reasoningEffort}\"`,
     `-c model_reasoning_summary=\"auto\"`,
   ].join(" ");

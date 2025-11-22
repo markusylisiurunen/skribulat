@@ -93,7 +93,8 @@ All utility files live under the `utils` folder.
   Supports periodic checkpointing during execution (default 30s intervals).
 - `agent_runner.ts`: Orchestrates agent execution with three modes: Codex (OpenAI CLI), Claude Code
   (Anthropic CLI), or shell (custom command). Handles authentication, streams execution progress,
-  returns final agent output.
+  returns final agent output. Codex runs include `tool_output_token_limit = 8192` in the config
+  passed to the CLI.
 - `agent_workspace.ts`: Prepares isolated git workspace in Docker for agent runs. Clones repo to
   `/root/agent`, configures git credentials for HTTPS operations, validates GitHub authentication.
 - `config.ts`: Central configuration loader for repo metadata and environment variables.
