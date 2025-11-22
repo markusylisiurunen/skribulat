@@ -141,10 +141,14 @@ All utility files live under the `utils` folder.
     environment into the container when present. Use this for secrets you prefer to set locally
     (e.g., `OPENAI_API_KEY`, `GITHUB_TOKEN`) while keeping the keys documented in version control.
 - `grep.fragments`: optional list of named codebase fragments. Each entry needs `name` plus one or
-  more `include` regex strings (and optional `exclude`). If fragments are configured, the implicit
+  more `include` regex strings (and optional `exclude`). Fragments may also declare `splits`, an
+  array of objects with their own `include` (required) and optional `exclude` regex lists; each
+  split is sent as a separate LLM call for finer-grained context control. Files matching earlier
+  splits are not reused in later ones; any files that match the fragment but no split are
+  automatically bundled into a final remainder split. If fragments are configured, the implicit
   default fragment (`.*`) is disabled; otherwise, all files are searched by default. Patterns follow
   the same semantics as `-i/--include` in `oracle`. Fragment stats and searches enforce a cap of 50k
-  lines or 1M chars per fragment.
+  lines or 1M chars per split call.
 - Downstream scripts call `buildRunnerEnv` to merge base variables, committed overrides, and any
   pass-through keys before starting the container, ensuring flags and secrets are consistently
   available during agent execution.

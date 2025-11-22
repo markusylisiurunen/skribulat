@@ -23,11 +23,20 @@ type Fragment = {
   name: string;
   include: RegExp[];
   exclude: RegExp[];
+  splits?: FragmentSplit[];
+};
+
+type FragmentSplit = {
+  name: string;
+  include: RegExp[];
+  exclude: RegExp[];
 };
 
 type Attachment = {
   path: string;
   content: string;
+  lines: number;
+  chars: number;
 };
 
 type FragmentStats = {
@@ -37,6 +46,7 @@ type FragmentStats = {
   totalChars: number;
   totalTokens: number;
   samplePaths: string[];
+  splits: number;
 };
 
 const MODEL_ALIASES = {
@@ -205,8 +215,24 @@ function buildDefaultFragments(): Fragment[] {
 function compileFragmentConfig(config: GrepFragmentConfig): Fragment | null {
   const include = config.include.map((pattern) => compileRegex(config.name, pattern));
   const exclude = (config.exclude ?? []).map((pattern) => compileRegex(config.name, pattern));
+  const splits = (config.splits ?? [])
+    .map((split, index): FragmentSplit | null => {
+      const splitInclude = (split.include ?? []).map((pattern) =>
+        compileRegex(split.name || `${config.name}-split-${index + 1}`, pattern)
+      );
+      if (splitInclude.length === 0) return null;
+      const splitExclude = (split.exclude ?? []).map((pattern) =>
+        compileRegex(split.name || `${config.name}-split-${index + 1}`, pattern)
+      );
+      return {
+        name: split.name || `split-${index + 1}`,
+        include: splitInclude,
+        exclude: splitExclude,
+      };
+    })
+    .filter(Boolean) as FragmentSplit[];
   if (include.length === 0) return null;
-  return { name: config.name, include, exclude };
+  return { name: config.name, include, exclude, splits: splits.length > 0 ? splits : undefined };
 }
 
 function resolveFragments(
@@ -294,7 +320,12 @@ async function collectAttachments(
 
     totalLines += decoded.lines;
     totalChars += decoded.chars;
-    attachments.push({ path: entry.cwdRelativePosix, content: decoded.content });
+    attachments.push({
+      path: entry.cwdRelativePosix,
+      content: decoded.content,
+      lines: decoded.lines,
+      chars: decoded.chars,
+    });
   }
 
   return { attachments, warnings };
@@ -343,20 +374,78 @@ async function searchFragment(
     };
   }
 
-  const { attachments, warnings } = await collectAttachments(entries);
   const cfg = MODEL_CONFIG[model];
-  const completion = await generateCompletion({
-    maxTokens: cfg.maxTokens,
-    model: MODEL_ALIASES[model],
-    messages: [
-      { role: "system", content: buildSystemPrompt() },
-      { role: "user", content: buildUserPrompt(prompt, attachments) },
-    ],
-    reasoningEffort: cfg.reasoningEffort,
-    provider: cfg.provider,
-  });
+  // When no splits are configured, process the fragment as a single batch.
+  if (!fragment.splits || fragment.splits.length === 0) {
+    const { attachments, warnings } = await collectAttachments(entries);
+    if (attachments.length === 0) {
+      return { name: fragment.name, response: "No files matched this fragment.", warnings };
+    }
+    const completion = await generateCompletion({
+      maxTokens: cfg.maxTokens,
+      model: MODEL_ALIASES[model],
+      messages: [
+        { role: "system", content: buildSystemPrompt() },
+        { role: "user", content: buildUserPrompt(prompt, attachments) },
+      ],
+      reasoningEffort: cfg.reasoningEffort,
+      provider: cfg.provider,
+    });
+    return { name: fragment.name, response: completion.trim(), warnings };
+  }
 
-  return { name: fragment.name, response: completion.trim(), warnings };
+  // Manual splits: process each split's matching files separately.
+  const warnings: string[] = [];
+  const used = new Set<string>();
+  const splitJobs: { label: string; attachments: Attachment[] }[] = [];
+
+  for (const [index, split] of fragment.splits.entries()) {
+    const matches = entries.filter((entry) => {
+      if (used.has(entry.cwdRelativePosix)) return false;
+      const inSplit = split.include.some((regex) => regex.test(entry.cwdRelativePosix));
+      const excluded = split.exclude.some((regex) => regex.test(entry.cwdRelativePosix));
+      return inSplit && !excluded;
+    });
+
+    matches.forEach((entry) => used.add(entry.cwdRelativePosix));
+
+    const { attachments, warnings: splitWarnings } = await collectAttachments(matches);
+    warnings.push(...splitWarnings);
+
+    const label = split.name || `split-${index + 1}`;
+    splitJobs.push({ label, attachments });
+  }
+
+  const remaining = entries.filter((entry) => !used.has(entry.cwdRelativePosix));
+  if (remaining.length > 0) {
+    const { attachments, warnings: splitWarnings } = await collectAttachments(remaining);
+    warnings.push(...splitWarnings);
+    splitJobs.push({ label: "remainder", attachments });
+  }
+
+  const completionResults = await Promise.all(
+    splitJobs.map(async (job) => {
+      if (job.attachments.length === 0) {
+        return `Split ${job.label}: No files matched this split.`;
+      }
+      const completion = await generateCompletion({
+        maxTokens: cfg.maxTokens,
+        model: MODEL_ALIASES[model],
+        messages: [
+          { role: "system", content: buildSystemPrompt() },
+          { role: "user", content: buildUserPrompt(prompt, job.attachments) },
+        ],
+        reasoningEffort: cfg.reasoningEffort,
+        provider: cfg.provider,
+      });
+      return `Split ${job.label}:\n${completion.trim()}`;
+    }),
+  );
+
+  const response = completionResults.length > 0
+    ? completionResults.join("\n\n")
+    : "No files matched any configured split for this fragment.";
+  return { name: fragment.name, response, warnings };
 }
 
 async function describeFragments(fragments: Fragment[]): Promise<FragmentStats[]> {
@@ -396,6 +485,7 @@ async function describeFragments(fragments: Fragment[]): Promise<FragmentStats[]
       totalChars,
       totalTokens,
       samplePaths: entries.slice(0, 5).map((entry) => entry.cwdRelativePosix),
+      splits: fragment.splits?.length ?? 0,
     });
   }
   return stats;
@@ -412,6 +502,9 @@ function printFragmentStats(stats: FragmentStats[]) {
     console.log(`  lines: ${fragment.totalLines}`);
     console.log(`  chars: ${fragment.totalChars}`);
     console.log(`  tokens: ~${fragment.totalTokens}`);
+    if (fragment.splits > 0) {
+      console.log(`  splits: ${fragment.splits}`);
+    }
     if (fragment.samplePaths.length > 0) {
       console.log(`  sample: ${fragment.samplePaths.join(", ")}`);
     }

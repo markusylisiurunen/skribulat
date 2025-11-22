@@ -24,6 +24,13 @@ export type GrepFragmentConfig = {
   name: string;
   include: string[];
   exclude?: string[];
+  splits?: GrepFragmentSplitConfig[];
+};
+
+export type GrepFragmentSplitConfig = {
+  name?: string;
+  include?: string[];
+  exclude?: string[];
 };
 
 export type GrepConfig = {
@@ -136,6 +143,28 @@ function toStringArray(value: unknown): string[] {
   return [];
 }
 
+function normalizeSplits(raw: unknown): GrepFragmentSplitConfig[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const splits: GrepFragmentSplitConfig[] = [];
+  for (const entry of raw) {
+    if (!entry || typeof entry !== "object") continue;
+    const record = entry as Record<string, unknown>;
+    const nameRaw = record["name"];
+    const include = toStringArray(record["include"]);
+    const exclude = toStringArray(record["exclude"]);
+    if (include.length === 0) continue; // must have an include to be meaningful
+    const name = typeof nameRaw === "string" && nameRaw.trim().length > 0
+      ? nameRaw.trim()
+      : undefined;
+    splits.push({
+      name,
+      include,
+      exclude: exclude.length > 0 ? exclude : undefined,
+    });
+  }
+  return splits.length > 0 ? splits : undefined;
+}
+
 function normalizeGrepConfig(raw: Record<string, unknown>): GrepConfig {
   const config: GrepConfig = {};
   const fragmentsRaw = raw["fragments"];
@@ -146,14 +175,17 @@ function normalizeGrepConfig(raw: Record<string, unknown>): GrepConfig {
       const nameRaw = (entry as Record<string, unknown>)["name"];
       const includeRaw = (entry as Record<string, unknown>)["include"];
       const excludeRaw = (entry as Record<string, unknown>)["exclude"];
+      const splitsRaw = (entry as Record<string, unknown>)["splits"];
       const name = typeof nameRaw === "string" ? nameRaw.trim() : "";
       const include = toStringArray(includeRaw);
       const exclude = toStringArray(excludeRaw);
+      const splits = normalizeSplits(splitsRaw);
       if (!name || include.length === 0) continue;
       fragments.push({
         name,
         include,
         exclude: exclude.length > 0 ? exclude : undefined,
+        splits,
       });
     }
     if (fragments.length > 0) {
