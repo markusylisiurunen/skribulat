@@ -19,6 +19,7 @@ type ParsedArgs = {
   model: ModelAlias;
   mode: "search" | "fragments";
   allFragments: boolean;
+  dryRun: boolean;
 };
 
 type Fragment = {
@@ -118,6 +119,7 @@ function usage(defaultModel: ModelAlias) {
       '  skribulat grep -f entity -f repository -p "which queries produce entity.User objects"',
       '  skribulat grep -a -p "search across all fragments"',
       `  skribulat grep -i '^src/.+\\.ts' -e '\\.test\\.ts$' -p "inspect services"`,
+      "  skribulat grep --dry-run -f backend",
       "  skribulat grep fragments",
       "",
       "Options:",
@@ -126,6 +128,7 @@ function usage(defaultModel: ModelAlias) {
       "  -a, --all-fragments    Search all fragments (ignores any -f flags)",
       "  -i, --include <regex>  Regex for files to include (repeatable; conflicts with -f/-a)",
       "  -e, --exclude <regex>  Regex for files to exclude (repeatable; conflicts with -f/-a)",
+      "      --dry-run          List matching files with line/token counts instead of calling the model",
       `  -m, --model <alias>    Model alias: gemini-2.5-flash-lite | gemini-2.5-flash | gemini-3-pro | gpt-5.1 | qwen3-32b (default ${defaultModel})`,
       "  -h, --help             Show this help message",
     ].join("\n"),
@@ -154,6 +157,7 @@ function parseArgs(argv: readonly string[], defaultModel: ModelAlias): ParsedArg
       model: defaultModel,
       mode: "fragments",
       allFragments: true,
+      dryRun: false,
     };
   }
 
@@ -163,6 +167,7 @@ function parseArgs(argv: readonly string[], defaultModel: ModelAlias): ParsedArg
   const exclude: RegExp[] = [];
   let model: ModelAlias = defaultModel;
   let allFragments = false;
+  let dryRun = false;
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
@@ -231,6 +236,10 @@ function parseArgs(argv: readonly string[], defaultModel: ModelAlias): ParsedArg
       model = value as ModelAlias;
       continue;
     }
+    if (arg === "--dry-run") {
+      dryRun = true;
+      continue;
+    }
     if (arg.startsWith("--model=")) {
       const value = arg.slice("--model=".length);
       if (!value) throw new CliError("--model requires a value.");
@@ -246,11 +255,14 @@ function parseArgs(argv: readonly string[], defaultModel: ModelAlias): ParsedArg
   }
 
   if (!prompt || prompt.trim().length === 0) {
-    usage(defaultModel);
-    throw new CliError("Prompt (-p/--prompt) is required.");
+    if (!dryRun) {
+      usage(defaultModel);
+      throw new CliError("Prompt (-p/--prompt) is required.");
+    }
+    prompt = "";
   }
 
-  return { prompt, fragmentNames, include, exclude, model, mode: "search", allFragments };
+  return { prompt, fragmentNames, include, exclude, model, mode: "search", allFragments, dryRun };
 }
 
 function resolveDefaultModelAlias(configModel?: string): ModelAlias {
@@ -642,6 +654,54 @@ function printFragmentStats(stats: FragmentStats[]) {
   }
 }
 
+async function printDryRun(
+  targets: { fragment: Fragment; entries?: FileEntry[] }[],
+): Promise<void> {
+  const repoRoot = resolveRepoRoot();
+  for (const target of targets) {
+    const entries = target.entries ??
+      buildFilteredFileEntries({
+        include: target.fragment.include,
+        exclude: target.fragment.exclude,
+        cwd: repoRoot,
+        repoRoot,
+      });
+
+    console.log(`== ${target.fragment.name} ==`);
+    if (entries.length === 0) {
+      console.log("No files matched this fragment.\n");
+      continue;
+    }
+
+    const stats = await Promise.all(
+      entries.map(async (entry) => {
+        const content = await Deno.readTextFile(entry.absolutePath);
+        const lines = countLines(content);
+        const tokens = Math.round(estimateTokenCount(content));
+        return { path: entry.cwdRelativePosix, lines, tokens };
+      }),
+    );
+
+    const maxPath = Math.max(...stats.map((s) => s.path.length));
+    const maxLines = Math.max(...stats.map((s) => s.lines)).toString().length;
+    const maxTokens = Math.max(...stats.map((s) => s.tokens)).toString().length;
+
+    let totalLines = 0;
+    let totalTokens = 0;
+
+    for (const stat of stats) {
+      totalLines += stat.lines;
+      totalTokens += stat.tokens;
+      const pathPad = " ".repeat(maxPath - stat.path.length + 3);
+      const linesText = `${stat.lines}`.padStart(maxLines);
+      const tokensText = `${stat.tokens}`.padStart(maxTokens);
+      console.log(`${stat.path}${pathPad}${linesText} lines   ${tokensText} tokens`);
+    }
+    console.log("");
+    console.log(`Total: ${totalLines} lines, ~${totalTokens} tokens\n`);
+  }
+}
+
 export async function runGrep(argv: string[]) {
   try {
     const projectConfig = loadProjectConfig();
@@ -682,6 +742,11 @@ export async function runGrep(argv: string[]) {
         searchTargets.map((target) => target.fragment),
       );
       printFragmentStats(stats);
+      return;
+    }
+
+    if (args.dryRun) {
+      await printDryRun(searchTargets);
       return;
     }
 

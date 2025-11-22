@@ -28,7 +28,8 @@ Skribulat is a Deno-based command-line toolkit for AI-assisted repo workflows.
 - `grep` – fragment-aware, model-powered grep. Provide `-p/--prompt` with either fragment selection
   (`-f/--fragment`, repeatable; or `-a/--all-fragments`) **or** ad-hoc regex filters
   (`-i/--include`, `-e/--exclude`, repeatable); fragments and ad-hoc filters are mutually exclusive.
-  Each fragment (or the ad-hoc selection) is searched in its own LLM call; fragments may declare
+  Use `--dry-run` to list matched files with line/token counts without calling the model. Each
+  fragment (or the ad-hoc selection) is searched in its own LLM call; fragments may declare
   regex-based `splits` to fan their files into multiple calls for smaller contexts, with any
   unmatched files automatically bundled into a final remainder split. Model aliases:
   gemini-2.5-flash-lite (default), gemini-2.5-flash, gemini-3-pro, gpt-5.1, qwen3-32b.
