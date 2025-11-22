@@ -35,6 +35,7 @@ export type GrepFragmentSplitConfig = {
 
 export type GrepConfig = {
   fragments?: GrepFragmentConfig[];
+  defaultModel?: string;
 };
 
 export type ProjectConfig = {
@@ -168,6 +169,10 @@ function normalizeSplits(raw: unknown): GrepFragmentSplitConfig[] | undefined {
 function normalizeGrepConfig(raw: Record<string, unknown>): GrepConfig {
   const config: GrepConfig = {};
   const fragmentsRaw = raw["fragments"];
+  const defaultModelRaw = raw["default_model"];
+  if (typeof defaultModelRaw === "string" && defaultModelRaw.trim().length > 0) {
+    config.defaultModel = defaultModelRaw.trim();
+  }
   if (Array.isArray(fragmentsRaw)) {
     const fragments: GrepFragmentConfig[] = [];
     for (const entry of fragmentsRaw) {

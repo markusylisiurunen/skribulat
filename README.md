@@ -29,10 +29,10 @@ Skribulat is a Deno-based command-line toolkit for AI-assisted repo workflows.
   selectors; use `-a/--all-fragments` to include every fragment without listing them. Each fragment
   is searched in its own LLM call; fragments may also declare regex-based `splits` to fan their
   files into multiple calls for smaller contexts, with any unmatched files automatically bundled
-  into a final remainder split. Model aliases: gemini-2.5-flash (default), gemini-3-pro, gpt-5.1,
-  qwen3-32b. `skribulat grep fragments` lists configured fragments, their splits (with
-  file/line/char counts), and file/line/token stats (limited to 50k lines or 1M chars per split
-  call).
+  into a final remainder split. Model aliases: gemini-2.5-flash-lite (default), gemini-2.5-flash,
+  gemini-3-pro, gpt-5.1, qwen3-32b. `skribulat grep fragments` lists configured fragments, their
+  splits (with file/line/char counts), and file/line/token stats (limited to 50k lines or 1M chars
+  per split call).
 - `oracle` – ask free-form questions with optional file attachments (same include/exclude filters);
   accepts `-p` or piped stdin when `-p` is omitted. Per-file attachments capped at 5,000 lines/100k
   chars and 50k lines/1M chars per turn; non-UTF8 files are skipped with warnings. Supports
@@ -58,8 +58,9 @@ file starts with a top-level `agent` block that defines global defaults, and opt
 as `plan_issue`, `work_on_issue`, and `work_on_pr` that override those defaults for a single
 workflow. Each of these sections may include a nested `agent` block plus any command-specific
 fields—Plan Issue, for example, understands `agents_directory_map`, `label_explanations`, and
-`tool_guidance`; Grep optionally understands `grep.fragments` (named include/exclude regex lists,
-optionally further split via `splits`). At runtime the merge order is:
+`tool_guidance`; Grep optionally understands `grep.default_model` (one of the model aliases) and
+`grep.fragments` (named include/exclude regex lists, optionally further split via `splits`). At
+runtime the merge order is:
 
 1. global `agent`
 2. command-specific `<command>.agent` (if present)
@@ -80,6 +81,7 @@ Example `.skribulat/config.yaml`:
 
 ```yaml
 grep:
+  default_model: gemini-2.5-flash-lite
   fragments:
     - name: backend
       include:

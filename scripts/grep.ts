@@ -57,8 +57,9 @@ type FragmentStats = {
 };
 
 const MODEL_ALIASES = {
-  "gemini-3-pro": "google/gemini-3-pro-preview",
+  "gemini-2.5-flash-lite": "google/gemini-2.5-flash-lite-preview-09-2025",
   "gemini-2.5-flash": "google/gemini-2.5-flash-preview-09-2025",
+  "gemini-3-pro": "google/gemini-3-pro-preview",
   "gpt-5.1": "openai/gpt-5.1",
   "qwen3-32b": "qwen/qwen3-32b",
 } as const;
@@ -79,6 +80,10 @@ const MODEL_CONFIG: Record<
     maxTokens: 8192,
     reasoningEffort: "low",
   },
+  "gemini-2.5-flash-lite": {
+    maxTokens: 8192,
+    reasoningEffort: "low",
+  },
   "gpt-5.1": {
     maxTokens: 8192,
     reasoningEffort: "none",
@@ -89,14 +94,18 @@ const MODEL_CONFIG: Record<
   },
 };
 
-const DEFAULT_MODEL: ModelAlias = "gemini-2.5-flash";
+const DEFAULT_MODEL: ModelAlias = "gemini-2.5-flash-lite";
 
 const PER_FILE_LINE_LIMIT = 5_000;
 const PER_FILE_CHAR_LIMIT = 100_000;
 const TOTAL_LINE_LIMIT = 50_000;
 const TOTAL_CHAR_LIMIT = 1_000_000;
 
-function usage() {
+function isModelAlias(value: string): value is ModelAlias {
+  return value in MODEL_ALIASES;
+}
+
+function usage(defaultModel: ModelAlias) {
   console.log(
     [
       "Usage: skribulat grep [options]",
@@ -112,7 +121,7 @@ function usage() {
       "  -p, --prompt <text>    Query to run against the codebase (required)",
       "  -f, --fragment <name>  Fragment to search (repeatable; defaults to all)",
       "  -a, --all-fragments    Search all fragments (ignores any -f flags)",
-      "  -m, --model <alias>    Model alias: gemini-2.5-flash | gemini-3-pro | gpt-5.1 | qwen3-32b",
+      `  -m, --model <alias>    Model alias: gemini-2.5-flash-lite | gemini-2.5-flash | gemini-3-pro | gpt-5.1 | qwen3-32b (default ${defaultModel})`,
       "  -h, --help             Show this help message",
     ].join("\n"),
   );
@@ -127,7 +136,7 @@ function compileRegex(source: string, value: string): RegExp {
   }
 }
 
-function parseArgs(argv: readonly string[]): ParsedArgs {
+function parseArgs(argv: readonly string[], defaultModel: ModelAlias): ParsedArgs {
   if (argv[0] === "fragments") {
     if (argv.length > 1) {
       throw new CliError("`grep fragments` does not accept additional arguments.");
@@ -135,7 +144,7 @@ function parseArgs(argv: readonly string[]): ParsedArgs {
     return {
       prompt: "",
       fragmentNames: [],
-      model: DEFAULT_MODEL,
+      model: defaultModel,
       mode: "fragments",
       allFragments: true,
     };
@@ -143,13 +152,13 @@ function parseArgs(argv: readonly string[]): ParsedArgs {
 
   let prompt: string | undefined;
   const fragmentNames: string[] = [];
-  let model: ModelAlias = DEFAULT_MODEL;
+  let model: ModelAlias = defaultModel;
   let allFragments = false;
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === "-h" || arg === "--help") {
-      usage();
+      usage(defaultModel);
       Deno.exit(0);
     }
     if (arg === "-p" || arg === "--prompt") {
@@ -181,9 +190,9 @@ function parseArgs(argv: readonly string[]): ParsedArgs {
     if (arg === "-m" || arg === "--model") {
       const value = argv[++i];
       if (!value) throw new CliError(`${arg} requires a value.`);
-      if (!(value in MODEL_ALIASES)) {
+      if (!isModelAlias(value)) {
         throw new CliError(
-          "Invalid model alias. Allowed: gemini-2.5-flash, gemini-3-pro, gpt-5.1, qwen3-32b.",
+          "Invalid model alias. Allowed: gemini-2.5-flash-lite, gemini-2.5-flash, gemini-3-pro, gpt-5.1, qwen3-32b.",
         );
       }
       model = value as ModelAlias;
@@ -192,9 +201,9 @@ function parseArgs(argv: readonly string[]): ParsedArgs {
     if (arg.startsWith("--model=")) {
       const value = arg.slice("--model=".length);
       if (!value) throw new CliError("--model requires a value.");
-      if (!(value in MODEL_ALIASES)) {
+      if (!isModelAlias(value)) {
         throw new CliError(
-          "Invalid model alias. Allowed: gemini-2.5-flash, gemini-3-pro, gpt-5.1, qwen3-32b.",
+          "Invalid model alias. Allowed: gemini-2.5-flash-lite, gemini-2.5-flash, gemini-3-pro, gpt-5.1, qwen3-32b.",
         );
       }
       model = value as ModelAlias;
@@ -204,11 +213,23 @@ function parseArgs(argv: readonly string[]): ParsedArgs {
   }
 
   if (!prompt || prompt.trim().length === 0) {
-    usage();
+    usage(defaultModel);
     throw new CliError("Prompt (-p/--prompt) is required.");
   }
 
   return { prompt, fragmentNames, model, mode: "search", allFragments };
+}
+
+function resolveDefaultModelAlias(configModel?: string): ModelAlias {
+  if (!configModel) return DEFAULT_MODEL;
+  if (!isModelAlias(configModel)) {
+    throw new CliError(
+      `Invalid grep.default_model "${configModel}". Allowed: ${
+        Object.keys(MODEL_ALIASES).join(", ")
+      }`,
+    );
+  }
+  return configModel;
 }
 
 function buildDefaultFragments(): Fragment[] {
@@ -588,8 +609,9 @@ function printFragmentStats(stats: FragmentStats[]) {
 
 export async function runGrep(argv: string[]) {
   try {
-    const args = parseArgs(argv);
     const projectConfig = loadProjectConfig();
+    const defaultModel = resolveDefaultModelAlias(projectConfig.grep?.defaultModel);
+    const args = parseArgs(argv, defaultModel);
     const fragments = resolveFragments(
       args.fragmentNames,
       projectConfig.grep?.fragments,
