@@ -658,6 +658,56 @@ async function printDryRun(
   targets: { fragment: Fragment; entries?: FileEntry[] }[],
 ): Promise<void> {
   const repoRoot = resolveRepoRoot();
+
+  const computeStats = async (
+    entries: FileEntry[],
+  ): Promise<{
+    files: { path: string; lines: number; tokens: number }[];
+    totals: {
+      lines: number;
+      tokens: number;
+    };
+  }> => {
+    const files: { path: string; lines: number; tokens: number }[] = [];
+    let totalLines = 0;
+    let totalTokens = 0;
+    for (const entry of entries) {
+      const content = await Deno.readTextFile(entry.absolutePath);
+      const lines = countLines(content);
+      const tokens = Math.round(estimateTokenCount(content));
+      files.push({ path: entry.cwdRelativePosix, lines, tokens });
+      totalLines += lines;
+      totalTokens += tokens;
+    }
+    return { files, totals: { lines: totalLines, tokens: totalTokens } };
+  };
+
+  const printStats = (
+    files: { path: string; lines: number; tokens: number }[],
+    totals: { lines: number; tokens: number },
+    indent = "",
+  ) => {
+    const maxPath = files.length > 0 ? Math.max(...files.map((s) => s.path.length)) : 0;
+    const maxLines = files.length > 0
+      ? Math.max(...files.map((s) => s.lines)).toString().length
+      : 0;
+    const maxTokens = files.length > 0
+      ? Math.max(...files.map((s) => s.tokens)).toString().length
+      : 0;
+
+    for (const stat of files) {
+      const pathPad = " ".repeat(maxPath - stat.path.length + 3);
+      const linesText = `${stat.lines}`.padStart(maxLines);
+      const tokensText = `${stat.tokens}`.padStart(maxTokens);
+      console.log(
+        `${indent}${stat.path}${pathPad}${linesText} lines   ${tokensText} tokens`,
+      );
+    }
+    console.log(
+      `${indent}Total: ${totals.lines} lines, ~${totals.tokens} tokens`,
+    );
+  };
+
   for (const target of targets) {
     const entries = target.entries ??
       buildFilteredFileEntries({
@@ -673,32 +723,40 @@ async function printDryRun(
       continue;
     }
 
-    const stats = await Promise.all(
-      entries.map(async (entry) => {
-        const content = await Deno.readTextFile(entry.absolutePath);
-        const lines = countLines(content);
-        const tokens = Math.round(estimateTokenCount(content));
-        return { path: entry.cwdRelativePosix, lines, tokens };
-      }),
-    );
+    if (target.fragment.splits && target.fragment.splits.length > 0) {
+      const used = new Set<string>();
+      for (const [index, split] of target.fragment.splits.entries()) {
+        const matches = entries.filter((entry) => {
+          if (used.has(entry.cwdRelativePosix)) return false;
+          const inSplit = split.include.some((regex) => regex.test(entry.cwdRelativePosix));
+          const excluded = split.exclude.some((regex) => regex.test(entry.cwdRelativePosix));
+          return inSplit && !excluded;
+        });
+        matches.forEach((entry) => used.add(entry.cwdRelativePosix));
 
-    const maxPath = Math.max(...stats.map((s) => s.path.length));
-    const maxLines = Math.max(...stats.map((s) => s.lines)).toString().length;
-    const maxTokens = Math.max(...stats.map((s) => s.tokens)).toString().length;
+        const { files, totals } = await computeStats(matches);
+        console.log(`Split ${split.name || `split-${index + 1}`}:`);
+        if (files.length === 0) {
+          console.log("  No files matched this split.\n");
+          continue;
+        }
+        printStats(files, totals, "  ");
+        console.log("");
+      }
 
-    let totalLines = 0;
-    let totalTokens = 0;
-
-    for (const stat of stats) {
-      totalLines += stat.lines;
-      totalTokens += stat.tokens;
-      const pathPad = " ".repeat(maxPath - stat.path.length + 3);
-      const linesText = `${stat.lines}`.padStart(maxLines);
-      const tokensText = `${stat.tokens}`.padStart(maxTokens);
-      console.log(`${stat.path}${pathPad}${linesText} lines   ${tokensText} tokens`);
+      const remainder = entries.filter((entry) => !used.has(entry.cwdRelativePosix));
+      if (remainder.length > 0) {
+        const { files, totals } = await computeStats(remainder);
+        console.log("Split remainder:");
+        printStats(files, totals, "  ");
+        console.log("");
+      }
+      continue;
     }
+
+    const { files, totals } = await computeStats(entries);
+    printStats(files, totals);
     console.log("");
-    console.log(`Total: ${totalLines} lines, ~${totalTokens} tokens\n`);
   }
 }
 
