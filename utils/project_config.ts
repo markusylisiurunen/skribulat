@@ -20,9 +20,20 @@ export type PlanIssueConfig = AgentConfigSection & {
   toolGuidance?: string;
 };
 
+export type GrepFragmentConfig = {
+  name: string;
+  include: string[];
+  exclude?: string[];
+};
+
+export type GrepConfig = {
+  fragments?: GrepFragmentConfig[];
+};
+
 export type ProjectConfig = {
   agent?: AgentToolConfig;
   planIssue?: PlanIssueConfig;
+  grep?: GrepConfig;
   workOnIssue?: AgentConfigSection;
   workOnPr?: AgentConfigSection;
 };
@@ -52,6 +63,10 @@ function parseYaml(contents: string): ProjectConfig {
   const planIssue = planIssueRaw && typeof planIssueRaw === "object"
     ? normalizePlanIssueConfig(planIssueRaw as Record<string, unknown>)
     : undefined;
+  const grepRaw = root["grep"];
+  const grep = grepRaw && typeof grepRaw === "object"
+    ? normalizeGrepConfig(grepRaw as Record<string, unknown>)
+    : undefined;
   const workOnIssueRaw = root["work_on_issue"];
   const workOnIssue = workOnIssueRaw && typeof workOnIssueRaw === "object"
     ? normalizeAgentSection(workOnIssueRaw as Record<string, unknown>)
@@ -63,6 +78,7 @@ function parseYaml(contents: string): ProjectConfig {
   return {
     agent,
     planIssue,
+    grep,
     workOnIssue,
     workOnPr,
   };
@@ -102,6 +118,47 @@ function normalizePlanIssueConfig(raw: Record<string, unknown>): PlanIssueConfig
   const agentRaw = raw["agent"];
   if (agentRaw && typeof agentRaw === "object") {
     config.agent = normalizeAgentConfig(agentRaw as Record<string, unknown>);
+  }
+  return config;
+}
+
+function toStringArray(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value
+      .filter((entry): entry is string => typeof entry === "string")
+      .map((entry) => entry.trim())
+      .filter((entry) => entry.length > 0);
+  }
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? [trimmed] : [];
+  }
+  return [];
+}
+
+function normalizeGrepConfig(raw: Record<string, unknown>): GrepConfig {
+  const config: GrepConfig = {};
+  const fragmentsRaw = raw["fragments"];
+  if (Array.isArray(fragmentsRaw)) {
+    const fragments: GrepFragmentConfig[] = [];
+    for (const entry of fragmentsRaw) {
+      if (!entry || typeof entry !== "object") continue;
+      const nameRaw = (entry as Record<string, unknown>)["name"];
+      const includeRaw = (entry as Record<string, unknown>)["include"];
+      const excludeRaw = (entry as Record<string, unknown>)["exclude"];
+      const name = typeof nameRaw === "string" ? nameRaw.trim() : "";
+      const include = toStringArray(includeRaw);
+      const exclude = toStringArray(excludeRaw);
+      if (!name || include.length === 0) continue;
+      fragments.push({
+        name,
+        include,
+        exclude: exclude.length > 0 ? exclude : undefined,
+      });
+    }
+    if (fragments.length > 0) {
+      config.fragments = fragments;
+    }
   }
   return config;
 }

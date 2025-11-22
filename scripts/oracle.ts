@@ -36,6 +36,7 @@ type ParsedArgs = {
   include: RegExp[];
   exclude: RegExp[];
   prompt?: string;
+  stdinText?: string;
   detached: boolean;
   continueId?: string;
   waitId?: string;
@@ -257,6 +258,7 @@ function parseArgs(argv: readonly string[]): ParsedArgs {
     include,
     exclude,
     prompt,
+    stdinText: undefined,
     detached,
     continueId,
     waitId,
@@ -630,15 +632,32 @@ async function readPromptFromStdin(): Promise<string | undefined> {
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
+function appendStdinToPrompt(prompt: string, stdinText?: string): string {
+  if (!stdinText) return prompt;
+  const lines = countLines(stdinText);
+  const chars = stdinText.length;
+  if (lines > TOTAL_LINE_LIMIT || chars > TOTAL_CHAR_LIMIT) {
+    throw new CliError(
+      `Stdin content exceeds limits (${lines} lines, ${chars} chars; max ${TOTAL_LINE_LIMIT} lines or ${TOTAL_CHAR_LIMIT} chars).`,
+    );
+  }
+  return `${prompt}\n\n<stdin>\n${stdinText}\n</stdin>`;
+}
+
 export async function runOracle(argv: string[]) {
   await loadEnv();
   const parsed = parseArgs(argv);
 
-  if (!parsed.prompt && !parsed.waitId && !parsed.internalProcessId) {
-    const stdinPrompt = await readPromptFromStdin();
-    if (stdinPrompt) {
+  const stdinPrompt = await readPromptFromStdin();
+  if (stdinPrompt) {
+    parsed.stdinText = stdinPrompt;
+    if (!parsed.prompt && !parsed.waitId && !parsed.internalProcessId) {
       parsed.prompt = stdinPrompt;
     }
+  }
+
+  if (parsed.prompt && parsed.stdinText && parsed.prompt !== parsed.stdinText) {
+    parsed.prompt = appendStdinToPrompt(parsed.prompt, parsed.stdinText);
   }
 
   validateIntent(parsed);

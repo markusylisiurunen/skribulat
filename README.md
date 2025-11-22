@@ -25,6 +25,11 @@ Skribulat is a Deno-based command-line toolkit for AI-assisted repo workflows.
 - `markdown-codebase` – render git-visible files (tracked plus untracked, non-ignored) from the
   current working tree as Markdown or emit stats. Deleted files are skipped; new unignored files are
   included.
+- `grep` – fragment-aware, model-powered grep. Provide `-p/--prompt` and optional `-f/--fragment`
+  selectors; use `-a/--all-fragments` to include every fragment without listing them. Each fragment
+  is searched in a separate LLM call with concise, path-cited results. `skribulat grep fragments`
+  lists configured fragments with file/line/token stats (limited to 50k lines or 1M chars per
+  fragment).
 - `oracle` – ask free-form questions with optional file attachments (same include/exclude filters);
   accepts `-p` or piped stdin when `-p` is omitted. Per-file attachments capped at 5,000 lines/100k
   chars and 50k lines/1M chars per turn; non-UTF8 files are skipped with warnings. Supports
@@ -50,7 +55,8 @@ file starts with a top-level `agent` block that defines global defaults, and opt
 as `plan_issue`, `work_on_issue`, and `work_on_pr` that override those defaults for a single
 workflow. Each of these sections may include a nested `agent` block plus any command-specific
 fields—Plan Issue, for example, understands `agents_directory_map`, `label_explanations`, and
-`tool_guidance`. At runtime the merge order is:
+`tool_guidance`; Grep optionally understands `grep.fragments` (named include/exclude regex lists).
+At runtime the merge order is:
 
 1. global `agent`
 2. command-specific `<command>.agent` (if present)
@@ -94,6 +100,20 @@ plan_issue:
       PLAN_TEMPERATURE: "0.2" # extra toggle only this command needs
     env_passthrough:
       - OPENROUTER_API_KEY # forwarded in addition to global keys
+
+grep:
+  fragments:
+    - name: backend
+      include:
+        - "^services/api/"
+        - "^libs/backend/"
+      exclude:
+        - "\\.test\\.ts$"
+    - name: frontend
+      include:
+        - "^apps/web/"
+      exclude:
+        - "\\.stories\\.tsx$"
 
 work_on_issue:
   agent:
