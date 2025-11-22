@@ -47,6 +47,13 @@ type FragmentStats = {
   totalTokens: number;
   samplePaths: string[];
   splits: number;
+  splitNames: string[];
+  splitDetails: {
+    name: string;
+    files: number;
+    lines: number;
+    chars: number;
+  }[];
 };
 
 const MODEL_ALIASES = {
@@ -461,11 +468,15 @@ async function describeFragments(fragments: Fragment[]): Promise<FragmentStats[]
     let totalLines = 0;
     let totalChars = 0;
     let totalTokens = 0;
+    const perFile: Record<string, { lines: number; chars: number }> = {};
     for (const entry of entries) {
       try {
         const content = await Deno.readTextFile(entry.absolutePath);
-        totalLines += countLines(content);
-        totalChars += content.length;
+        const lines = countLines(content);
+        const chars = content.length;
+        perFile[entry.cwdRelativePosix] = { lines, chars };
+        totalLines += lines;
+        totalChars += chars;
         if (totalLines > TOTAL_LINE_LIMIT || totalChars > TOTAL_CHAR_LIMIT) {
           throw new CliError(
             `Fragment "${fragment.name}" exceeds limits (${totalLines} lines, ${totalChars} chars; ` +
@@ -478,6 +489,62 @@ async function describeFragments(fragments: Fragment[]): Promise<FragmentStats[]
         continue;
       }
     }
+
+    const splitDetails: {
+      name: string;
+      files: number;
+      lines: number;
+      chars: number;
+    }[] = [];
+    const used = new Set<string>();
+    if (fragment.splits && fragment.splits.length > 0) {
+      fragment.splits.forEach((split, index) => {
+        const matches = entries.filter((entry) => {
+          if (used.has(entry.cwdRelativePosix)) return false;
+          const inSplit = split.include.some((regex) => regex.test(entry.cwdRelativePosix));
+          const excluded = split.exclude.some((regex) => regex.test(entry.cwdRelativePosix));
+          return inSplit && !excluded;
+        });
+        matches.forEach((entry) => used.add(entry.cwdRelativePosix));
+        const stats = matches.reduce(
+          (acc, entry) => {
+            const info = perFile[entry.cwdRelativePosix];
+            if (info) {
+              acc.lines += info.lines;
+              acc.chars += info.chars;
+            }
+            acc.files += 1;
+            return acc;
+          },
+          { files: 0, lines: 0, chars: 0 },
+        );
+        splitDetails.push({
+          name: split.name || `split-${index + 1}`,
+          ...stats,
+        });
+      });
+      // remainder bucket
+      const remainder = entries.filter((entry) => !used.has(entry.cwdRelativePosix));
+      if (remainder.length > 0) {
+        const stats = remainder.reduce(
+          (acc, entry) => {
+            const info = perFile[entry.cwdRelativePosix];
+            if (info) {
+              acc.lines += info.lines;
+              acc.chars += info.chars;
+            }
+            acc.files += 1;
+            return acc;
+          },
+          { files: 0, lines: 0, chars: 0 },
+        );
+        splitDetails.push({
+          name: "remainder",
+          ...stats,
+        });
+      }
+    }
+
     stats.push({
       name: fragment.name,
       files: entries.length,
@@ -486,6 +553,8 @@ async function describeFragments(fragments: Fragment[]): Promise<FragmentStats[]
       totalTokens,
       samplePaths: entries.slice(0, 5).map((entry) => entry.cwdRelativePosix),
       splits: fragment.splits?.length ?? 0,
+      splitNames: fragment.splits?.map((split) => split.name) ?? [],
+      splitDetails,
     });
   }
   return stats;
@@ -503,7 +572,12 @@ function printFragmentStats(stats: FragmentStats[]) {
     console.log(`  chars: ${fragment.totalChars}`);
     console.log(`  tokens: ~${fragment.totalTokens}`);
     if (fragment.splits > 0) {
-      console.log(`  splits: ${fragment.splits}`);
+      console.log("  splits:");
+      fragment.splitDetails.forEach((split) => {
+        console.log(
+          `    - ${split.name}: files=${split.files}, lines=${split.lines}, chars=${split.chars}`,
+        );
+      });
     }
     if (fragment.samplePaths.length > 0) {
       console.log(`  sample: ${fragment.samplePaths.join(", ")}`);

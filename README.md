@@ -30,8 +30,9 @@ Skribulat is a Deno-based command-line toolkit for AI-assisted repo workflows.
   is searched in its own LLM call; fragments may also declare regex-based `splits` to fan their
   files into multiple calls for smaller contexts, with any unmatched files automatically bundled
   into a final remainder split. Model aliases: gemini-2.5-flash (default), gemini-3-pro, gpt-5.1,
-  qwen3-32b. `skribulat grep fragments` lists configured fragments with file/line/token stats
-  (limited to 50k lines or 1M chars per split call).
+  qwen3-32b. `skribulat grep fragments` lists configured fragments, their splits (with
+  file/line/char counts), and file/line/token stats (limited to 50k lines or 1M chars per split
+  call).
 - `oracle` – ask free-form questions with optional file attachments (same include/exclude filters);
   accepts `-p` or piped stdin when `-p` is omitted. Per-file attachments capped at 5,000 lines/100k
   chars and 50k lines/1M chars per turn; non-UTF8 files are skipped with warnings. Supports
@@ -78,6 +79,28 @@ while still documenting which ones are required.
 Example `.skribulat/config.yaml`:
 
 ```yaml
+grep:
+  fragments:
+    - name: backend
+      include:
+        - "^services/api/"
+        - "^libs/backend/"
+      exclude:
+        - "\\.test\\.ts$"
+      splits:
+        - name: controllers
+          include: ["^services/api/controllers/"]
+        - name: services
+          include: ["^services/api/services/"]
+        - name: misc-backend
+          include: ["^libs/backend/"]
+      # any files under the fragment that don't match a split go to an implicit "remainder" split
+    - name: frontend
+      include:
+        - "^apps/web/"
+      exclude:
+        - "\\.stories\\.tsx$"
+
 agent:
   tool: codex
   model: gpt-5.1-codex-max
@@ -102,28 +125,6 @@ plan_issue:
       PLAN_TEMPERATURE: "0.2" # extra toggle only this command needs
     env_passthrough:
       - OPENROUTER_API_KEY # forwarded in addition to global keys
-
-grep:
-  fragments:
-    - name: backend
-      include:
-        - "^services/api/"
-        - "^libs/backend/"
-      exclude:
-        - "\\.test\\.ts$"
-      splits:
-        - name: controllers
-          include: ["^services/api/controllers/"]
-        - name: services
-          include: ["^services/api/services/"]
-        - name: misc-backend
-          include: ["^libs/backend/"]
-      # any files under the fragment that don't match a split go to an implicit "remainder" split
-    - name: frontend
-      include:
-        - "^apps/web/"
-      exclude:
-        - "\\.stories\\.tsx$"
 
 work_on_issue:
   agent:
