@@ -40,14 +40,15 @@ All scripts live under the `scripts` folder (e.g., `scripts/commit.ts`).
   5,000 lines or 100k characters; per turn total max 50k lines or 1M characters. Non-UTF8 (likely
   binary) files are skipped with a warning; oversized files/turns error before sending to the model.
 - `grep.ts`: Fragment-aware code grep assistant. Defaults to model alias `gemini-2.5-flash-lite`
-  with low reasoning effort. Supports `-p/--prompt` (required), `-f/--fragment <name>` (repeatable;
-  defaults to all available fragments), `-a/--all-fragments` to force searching every fragment, and
-  `-m/--model` alias matching `oracle` (gemini-2.5-flash-lite default; gemini-2.5-flash,
-  gemini-3-pro, gpt-5.1, qwen3-32b also available). Each fragment is sent as a separate LLM call
-  with attached files matching its regex filters; responses are aggregated and printed with fragment
-  headings. Running `skribulat grep fragments` lists fragments and matching file counts/line/token
-  stats without calling the model. Fragment scans are capped at 50k lines or 1M characters;
-  exceeding the cap errors with the fragment name.
+  with low reasoning effort. Supports `-p/--prompt` (required) with either fragment selection
+  (`-f/--fragment <name>` repeatable, defaults to all; or `-a/--all-fragments`) **or** ad-hoc regex
+  filters (`-i/--include`, `-e/--exclude`, repeatable); fragments and ad-hoc filters cannot be
+  combined. `-m/--model` mirrors `oracle` (gemini-2.5-flash-lite default; gemini-2.5-flash,
+  gemini-3-pro, gpt-5.1, qwen3-32b also available). Each fragment/ad-hoc selection is sent as a
+  separate LLM call with attached files matching its regex filters; responses are aggregated and
+  printed with fragment headings. Running `skribulat grep fragments` lists fragments and matching
+  file counts/line/token stats without calling the model. Fragment scans are capped at 50k lines or
+  1M characters; exceeding the cap errors with the fragment name.
 - `plan_issue.ts`: Analyzes GitHub issues and posts comprehensive implementation plans. Supports
   `--issue <number>` or interactive selection plus optional `--agent <tool>`, `--model <name>`, and
   `--codex-auth <path>` to copy a host Codex `auth.json` into the container before running (falls

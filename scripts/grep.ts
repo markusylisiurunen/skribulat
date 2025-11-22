@@ -14,6 +14,8 @@ type ModelAlias = keyof typeof MODEL_ALIASES;
 type ParsedArgs = {
   prompt: string;
   fragmentNames: string[];
+  include: RegExp[];
+  exclude: RegExp[];
   model: ModelAlias;
   mode: "search" | "fragments";
   allFragments: boolean;
@@ -115,12 +117,15 @@ function usage(defaultModel: ModelAlias) {
       '  skribulat grep -p "find all React components opening a dialog"',
       '  skribulat grep -f entity -f repository -p "which queries produce entity.User objects"',
       '  skribulat grep -a -p "search across all fragments"',
+      `  skribulat grep -i '^src/.+\\.ts' -e '\\.test\\.ts$' -p "inspect services"`,
       "  skribulat grep fragments",
       "",
       "Options:",
       "  -p, --prompt <text>    Query to run against the codebase (required)",
       "  -f, --fragment <name>  Fragment to search (repeatable; defaults to all)",
       "  -a, --all-fragments    Search all fragments (ignores any -f flags)",
+      "  -i, --include <regex>  Regex for files to include (repeatable; conflicts with -f/-a)",
+      "  -e, --exclude <regex>  Regex for files to exclude (repeatable; conflicts with -f/-a)",
       `  -m, --model <alias>    Model alias: gemini-2.5-flash-lite | gemini-2.5-flash | gemini-3-pro | gpt-5.1 | qwen3-32b (default ${defaultModel})`,
       "  -h, --help             Show this help message",
     ].join("\n"),
@@ -144,6 +149,8 @@ function parseArgs(argv: readonly string[], defaultModel: ModelAlias): ParsedArg
     return {
       prompt: "",
       fragmentNames: [],
+      include: [],
+      exclude: [],
       model: defaultModel,
       mode: "fragments",
       allFragments: true,
@@ -152,6 +159,8 @@ function parseArgs(argv: readonly string[], defaultModel: ModelAlias): ParsedArg
 
   let prompt: string | undefined;
   const fragmentNames: string[] = [];
+  const include: RegExp[] = [];
+  const exclude: RegExp[] = [];
   let model: ModelAlias = defaultModel;
   let allFragments = false;
 
@@ -187,6 +196,30 @@ function parseArgs(argv: readonly string[], defaultModel: ModelAlias): ParsedArg
       allFragments = true;
       continue;
     }
+    if (arg === "-i" || arg === "--include") {
+      const pattern = argv[++i];
+      if (!pattern) throw new CliError(`${arg} requires a value.`);
+      include.push(compileRegex(arg, pattern));
+      continue;
+    }
+    if (arg.startsWith("--include=")) {
+      const pattern = arg.slice("--include=".length);
+      if (!pattern) throw new CliError("--include requires a value.");
+      include.push(compileRegex("--include", pattern));
+      continue;
+    }
+    if (arg === "-e" || arg === "--exclude") {
+      const pattern = argv[++i];
+      if (!pattern) throw new CliError(`${arg} requires a value.`);
+      exclude.push(compileRegex(arg, pattern));
+      continue;
+    }
+    if (arg.startsWith("--exclude=")) {
+      const pattern = arg.slice("--exclude=".length);
+      if (!pattern) throw new CliError("--exclude requires a value.");
+      exclude.push(compileRegex("--exclude", pattern));
+      continue;
+    }
     if (arg === "-m" || arg === "--model") {
       const value = argv[++i];
       if (!value) throw new CliError(`${arg} requires a value.`);
@@ -217,7 +250,7 @@ function parseArgs(argv: readonly string[], defaultModel: ModelAlias): ParsedArg
     throw new CliError("Prompt (-p/--prompt) is required.");
   }
 
-  return { prompt, fragmentNames, model, mode: "search", allFragments };
+  return { prompt, fragmentNames, include, exclude, model, mode: "search", allFragments };
 }
 
 function resolveDefaultModelAlias(configModel?: string): ModelAlias {
@@ -385,14 +418,16 @@ async function searchFragment(
   prompt: string,
   fragment: Fragment,
   model: ModelAlias,
+  entriesOverride?: FileEntry[],
 ): Promise<{ name: string; response: string; warnings: string[] }> {
   const repoRoot = resolveRepoRoot();
-  const entries = buildFilteredFileEntries({
-    include: fragment.include,
-    exclude: fragment.exclude,
-    cwd: repoRoot,
-    repoRoot,
-  });
+  const entries = entriesOverride ??
+    buildFilteredFileEntries({
+      include: fragment.include,
+      exclude: fragment.exclude,
+      cwd: repoRoot,
+      repoRoot,
+    });
 
   if (entries.length === 0) {
     return {
@@ -612,20 +647,48 @@ export async function runGrep(argv: string[]) {
     const projectConfig = loadProjectConfig();
     const defaultModel = resolveDefaultModelAlias(projectConfig.grep?.defaultModel);
     const args = parseArgs(argv, defaultModel);
-    const fragments = resolveFragments(
-      args.fragmentNames,
-      projectConfig.grep?.fragments,
-      args.allFragments,
-    );
+    const adHocPatternsProvided = args.include.length > 0 || args.exclude.length > 0;
+
+    if (adHocPatternsProvided && (args.fragmentNames.length > 0 || args.allFragments)) {
+      throw new CliError(
+        "Choose fragments (-f/--fragment or -a/--all-fragments) OR ad-hoc filters (-i/-e), not both.",
+      );
+    }
+
+    const repoRoot = resolveRepoRoot();
+
+    const searchTargets = adHocPatternsProvided
+      ? [{
+        fragment: {
+          name: "ad-hoc",
+          include: args.include,
+          exclude: args.exclude,
+        } satisfies Fragment,
+        entries: args.include.length === 0 ? [] : buildFilteredFileEntries({
+          include: args.include,
+          exclude: args.exclude,
+          cwd: repoRoot,
+          repoRoot,
+        }),
+      }]
+      : resolveFragments(
+        args.fragmentNames,
+        projectConfig.grep?.fragments,
+        args.allFragments,
+      ).map((fragment) => ({ fragment, entries: undefined as FileEntry[] | undefined }));
 
     if (args.mode === "fragments") {
-      const stats = await describeFragments(fragments);
+      const stats = await describeFragments(
+        searchTargets.map((target) => target.fragment),
+      );
       printFragmentStats(stats);
       return;
     }
 
     const results = await Promise.all(
-      fragments.map((fragment) => searchFragment(args.prompt, fragment, args.model)),
+      searchTargets.map((target) =>
+        searchFragment(args.prompt, target.fragment, args.model, target.entries)
+      ),
     );
 
     for (const result of results) {
