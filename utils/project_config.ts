@@ -119,6 +119,103 @@ function extractAgentConfig(value: unknown): AgentToolConfig | undefined {
   return normalizeAgentConfig(value as Record<string, unknown>);
 }
 
+function mergeEnv(
+  base?: Record<string, string>,
+  override?: Record<string, string>,
+): Record<string, string> | undefined {
+  if (!base && !override) return undefined;
+  return { ...(base ?? {}), ...(override ?? {}) };
+}
+
+function mergeEnvPassthrough(
+  base?: string[],
+  override?: string[],
+): string[] | undefined {
+  if (!base && !override) return undefined;
+  const combined = [...(base ?? []), ...(override ?? [])].map((value) => value.trim()).filter((
+    value,
+  ) => value.length > 0);
+  return Array.from(new Set(combined));
+}
+
+export function mergeAgentConfigs(
+  ...configs: (AgentToolConfig | undefined)[]
+): AgentToolConfig {
+  const merged: AgentToolConfig = {};
+  for (const config of configs) {
+    if (!config) continue;
+    if (config.tool) merged.tool = config.tool;
+    if (config.command) merged.command = config.command;
+    if (config.model) merged.model = config.model;
+    if (config.reasoningEffort) merged.reasoningEffort = config.reasoningEffort;
+    merged.env = mergeEnv(merged.env, config.env);
+    merged.envPassthrough = mergeEnvPassthrough(merged.envPassthrough, config.envPassthrough);
+  }
+  return merged;
+}
+
+function normalizeTool(value?: string): AgentToolConfig["tool"] | undefined {
+  if (!value) return undefined;
+  const tool = value.toLowerCase();
+  if (tool === "codex" || tool === "claude-code" || tool === "shell") {
+    return tool;
+  }
+  return undefined;
+}
+
+function normalizeReasoningEffort(
+  value?: string,
+): AgentToolConfig["reasoningEffort"] | undefined {
+  if (!value) return undefined;
+  const effort = value.toLowerCase();
+  if (effort === "minimal" || effort === "low" || effort === "medium" || effort === "high") {
+    return effort;
+  }
+  return undefined;
+}
+
+export type AgentCliOverrides = {
+  tool?: string;
+  model?: string;
+  command?: string;
+  reasoningEffort?: string;
+};
+
+export type AgentConfigTarget = "plan_issue" | "work_on_issue" | "work_on_pr";
+
+export function resolveAgentConfig(
+  projectConfig: ProjectConfig,
+  target: AgentConfigTarget,
+  cliOverrides: AgentCliOverrides = {},
+): AgentToolConfig {
+  const targetConfig = (() => {
+    switch (target) {
+      case "plan_issue":
+        return projectConfig.planIssue?.agent;
+      case "work_on_issue":
+        return projectConfig.workOnIssue?.agent;
+      case "work_on_pr":
+        return projectConfig.workOnPr?.agent;
+      default:
+        return undefined;
+    }
+  })();
+  const merged = mergeAgentConfigs(projectConfig.agent, targetConfig);
+  const overrideConfig: AgentToolConfig = {};
+  overrideConfig.tool = normalizeTool(cliOverrides.tool) ?? merged.tool;
+  overrideConfig.model = cliOverrides.model?.trim().length
+    ? cliOverrides.model.trim()
+    : merged.model;
+  overrideConfig.command = cliOverrides.command?.trim().length
+    ? cliOverrides.command.trim()
+    : merged.command;
+  overrideConfig.reasoningEffort = normalizeReasoningEffort(cliOverrides.reasoningEffort) ??
+    merged.reasoningEffort;
+  overrideConfig.env = merged.env;
+  overrideConfig.envPassthrough = merged.envPassthrough;
+  return overrideConfig;
+}
+
 function normalizeAgentConfig(raw: Record<string, unknown>): AgentToolConfig {
   const agent: AgentToolConfig = {};
   if (typeof raw["tool"] === "string") {

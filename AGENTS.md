@@ -44,10 +44,12 @@ All scripts live under the `scripts` folder (e.g., `scripts/commit.ts`).
   `--question`, and `--dry-run` (lists matching files with line counts instead of querying). Never
   echoes the snapshot or prompt to stdout—only the model's response.
 - `plan_issue.ts`: Analyzes GitHub issues and posts comprehensive implementation plans. Supports
-  `--issue <number>` or interactive selection plus optional `--codex-auth <path>` to copy a host
-  Codex `auth.json` into the container before running (falls back to API key login if missing). Runs
-  Codex agent with structured prompt including issue metadata, all comments (paginated), and
-  relevant AGENTS.md guidance (discovered via label→directory mapping from
+  `--issue <number>` or interactive selection plus optional `--agent <tool>`, `--model <name>`, and
+  `--codex-auth <path>` to copy a host Codex `auth.json` into the container before running (falls
+  back to API key login if missing). Uses the same agent config resolution as other work commands:
+  global `agent` defaults from `.skribulat/config.yaml` → command-specific `plan_issue.agent`
+  override → CLI flags (highest). Structured prompt includes issue metadata, all comments
+  (paginated), and relevant AGENTS.md guidance (discovered via label→directory mapping from
   `.skribulat/config.yaml`). Agent explores codebase and returns markdown plan with sections:
   summary, background, implementation steps, relevant files, open questions. Posts result as issue
   comment.

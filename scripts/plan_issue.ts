@@ -19,7 +19,13 @@ import {
   instructEfficientToolUse,
 } from "../utils/guidance.ts";
 import { runAgentHook } from "../utils/hooks.ts";
-import { AgentToolConfig, loadProjectConfig, PlanIssueConfig } from "../utils/project_config.ts";
+import {
+  AgentCliOverrides,
+  AgentToolConfig,
+  loadProjectConfig,
+  PlanIssueConfig,
+  resolveAgentConfig,
+} from "../utils/project_config.ts";
 import { loadPrompt, renderPrompt } from "../utils/prompts.ts";
 import { fitInConsoleWidth } from "../utils/text.ts";
 
@@ -28,6 +34,8 @@ function usage() {
     "Usage: skribulat plan-issue [options]\n\n" +
       "Options:\n" +
       "  --issue <number>     Analyze a specific issue by number\n" +
+      "  --agent <tool>       Agent tool to use (codex, claude-code, shell)\n" +
+      "  --model <name>       Model name (e.g., gpt-5.1-codex-max, sonnet, haiku)\n" +
       "  --codex-auth <path>  Copy Codex auth.json into the agent container before running\n" +
       "  -h, --help           Show this help message",
   );
@@ -122,9 +130,13 @@ export async function runPlanIssue(argv: string[]) {
   const cfg = config();
   let restArgs = argv;
   let issueNumberArg: number | undefined;
+  let cliAgent: AgentCliOverrides["tool"];
+  let cliModel: AgentCliOverrides["model"];
   let codexAuthPath: string | undefined;
   try {
     ({ rest: restArgs, value: issueNumberArg } = readPositiveIntegerFlag(restArgs, "--issue"));
+    ({ rest: restArgs, value: cliAgent } = readFlag(restArgs, "--agent"));
+    ({ rest: restArgs, value: cliModel } = readFlag(restArgs, "--model"));
     ({ rest: restArgs, value: codexAuthPath } = readFlag(restArgs, "--codex-auth"));
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -140,7 +152,10 @@ export async function runPlanIssue(argv: string[]) {
   const github = createGitHubClient(cfg.githubToken);
   const projectConfig = loadProjectConfig();
   const planConfig = projectConfig.planIssue ?? {};
-  const agentConfig = planConfig.agent ?? projectConfig.agent;
+  const agentConfig = resolveAgentConfig(projectConfig, "plan_issue", {
+    tool: cliAgent,
+    model: cliModel,
+  });
   const issueNumber = issueNumberArg ?? await chooseIssue(
     await github.listOpenIssues(cfg.githubOwner, cfg.githubRepo),
   );

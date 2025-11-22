@@ -30,9 +30,9 @@ Skribulat is a Deno-based command-line toolkit for AI-assisted repo workflows.
   Per-file attachments capped at 5,000 lines/100k chars and 50k lines/1M chars per turn; non-UTF8
   files are skipped with warnings. Supports continuation by session UUID, detached/background runs,
   wait mode, and dry-run inspection.
-- `plan-issue` – post a structured implementation plan for a GitHub issue. Supports
-  `--codex-auth <path>` to copy an existing host `auth.json` into the container before falling back
-  to API-key login.
+- `plan-issue` – post a structured implementation plan for a GitHub issue. Supports `--agent`,
+  `--model`, and `--codex-auth <path>` to copy an existing host `auth.json` into the container
+  before falling back to API-key login.
 - `plan-and-work-on-issue` – run the planning workflow and immediately hand off to the
   implementation workflow with optional `--agent`/`--model` overrides for the work phase. Accepts
   `--codex-auth` and forwards it to both steps.
@@ -51,7 +51,14 @@ file starts with a top-level `agent` block that defines global defaults, and opt
 as `plan_issue`, `work_on_issue`, and `work_on_pr` that override those defaults for a single
 workflow. Each of these sections may include a nested `agent` block plus any command-specific
 fields—Plan Issue, for example, understands `agents_directory_map`, `label_explanations`, and
-`tool_guidance`.
+`tool_guidance`. At runtime the merge order is:
+
+1. global `agent`
+2. command-specific `<command>.agent` (if present)
+3. CLI flags (`--agent`, `--model`)
+
+Later layers override earlier ones; env/env_passthrough keys are unioned so you keep committed
+defaults while letting command scopes or CLI add more.
 
 An `agent` block accepts the following knobs: `tool` (`"codex"`, `"claude-code"`, or `"shell"`),
 `model`, `command` (used mainly when `tool: shell`), `reasoning_effort` (passed through to Codex),
@@ -83,6 +90,7 @@ plan_issue:
   agent:
     tool: claude-code # override tool just for plan-issue
     model: sonnet
+    reasoning_effort: medium
     env:
       PLAN_TEMPERATURE: "0.2" # extra toggle only this command needs
     env_passthrough:
@@ -106,6 +114,13 @@ work_on_pr:
 The snippet shows global defaults plus per-command overrides that swap tools, models, committed
 environment values, and pass-through secrets. Only the key names for sensitive data are committed,
 so you can safely keep their values in `.env.secret` or your shell.
+
+CLI overrides sit on top of the YAML. Examples:
+
+- `deno run -A main.ts plan-issue --agent codex --model gpt-5.1-codex-max`
+- `deno run -A main.ts work-on-issue --agent shell --model ""` (falls back to shell command from
+  config)
+- `deno run -A main.ts work-on-pr --model sonnet`
 
 Hooks and agent artifacts live under `.skribulat/`:
 

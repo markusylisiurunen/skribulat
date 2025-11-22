@@ -23,7 +23,11 @@ import {
 import { runAgentHook } from "../utils/hooks.ts";
 import { generateCompletion } from "../utils/llm.ts";
 import { SKRIBULAT_PATCHES_SUBDIR, skribulatPath } from "../utils/paths.ts";
-import { AgentToolConfig, loadProjectConfig } from "../utils/project_config.ts";
+import {
+  AgentCliOverrides,
+  loadProjectConfig,
+  resolveAgentConfig,
+} from "../utils/project_config.ts";
 import { loadPrompt, renderPrompt } from "../utils/prompts.ts";
 import { fitInConsoleWidth } from "../utils/text.ts";
 
@@ -220,31 +224,13 @@ Your full response will be used as-is for the PR body.
   return body.trim().length > 0 ? body.trim() : `Fixes #${issueNumber}`;
 }
 
-function resolveAgentConfig(
-  projectConfig: ReturnType<typeof loadProjectConfig>,
-  cliOverrides?: { agent?: string; model?: string },
-): AgentToolConfig {
-  const base = projectConfig.workOnIssue?.agent ?? projectConfig.agent ?? {};
-  const config: AgentToolConfig = { ...base };
-  if (cliOverrides?.agent) {
-    const tool = cliOverrides.agent.toLowerCase();
-    if (tool === "codex" || tool === "claude-code" || tool === "shell") {
-      config.tool = tool;
-    }
-  }
-  if (cliOverrides?.model) {
-    config.model = cliOverrides.model;
-  }
-  return config;
-}
-
 export async function runWorkOnIssue(argv: string[]) {
   await loadEnv();
   const cfg = config();
   let restArgs = argv;
   let issueNumberArg: number | undefined;
-  let agentArg: string | undefined;
-  let modelArg: string | undefined;
+  let agentArg: AgentCliOverrides["tool"];
+  let modelArg: AgentCliOverrides["model"];
   let codexAuthPath: string | undefined;
   try {
     ({ rest: restArgs, value: issueNumberArg } = readPositiveIntegerFlag(restArgs, "--issue"));
@@ -301,8 +287,8 @@ export async function runWorkOnIssue(argv: string[]) {
     "{{ISSUE_BODY}}": issue.body.trim().length > 0 ? issue.body.trim() : "No description.",
     "{{ISSUE_COMMENTS}}": issueCommentsBlock,
   });
-  const agentConfig = resolveAgentConfig(projectConfig, {
-    agent: agentArg,
+  const agentConfig = resolveAgentConfig(projectConfig, "work_on_issue", {
+    tool: agentArg,
     model: modelArg,
   });
   const githubUsername = Deno.env.get("GITHUB_USERNAME") ?? cfg.githubOwner;
