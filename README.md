@@ -35,10 +35,13 @@ Skribulat is a Deno-based command-line toolkit for AI-assisted repo workflows.
   gemini-2.5-flash-lite (default), gemini-2.5-flash, gemini-3-pro, gpt-5.1, qwen3-32b.
   `skribulat grep fragments` lists configured fragments, their splits (with file/line/char counts),
   and file/line/token stats (limited to 50k lines or 1M chars per split call).
-- `oracle` – ask free-form questions with optional file attachments (same include/exclude filters);
-  accepts `-p` or piped stdin when `-p` is omitted. Per-file attachments capped at 5,000 lines/100k
-  chars and 50k lines/1M chars per turn; non-UTF8 files are skipped with warnings. Supports
-  continuation by session UUID, detached/background runs, wait mode, and dry-run inspection.
+- `oracle` – ask free-form questions with optional file attachments; accepts `-p` or piped stdin
+  when `-p` is omitted. You can attach files via fragments configured under `oracle.fragments`
+  (`-f/--fragment`) and/or ad-hoc regex filters (`-i/--include`, `-e/--exclude`); ad-hoc filters do
+  not filter fragment files. Per-file attachments capped at 5,000 lines/100k chars and 50k lines/1M
+  chars per turn; non-UTF8 files are skipped with warnings. Supports continuation by session UUID,
+  detached/background runs, wait mode, dry-run inspection, and a configurable default model
+  (`oracle.default_model`, fallback `gemini-3-pro`).
 - `plan-issue` – post a structured implementation plan for a GitHub issue. Supports `--agent`,
   `--model`, and `--codex-auth <path>` to copy an existing host `auth.json` into the container
   before falling back to API-key login.
@@ -61,8 +64,9 @@ as `plan_issue`, `work_on_issue`, and `work_on_pr` that override those defaults 
 workflow. Each of these sections may include a nested `agent` block plus any command-specific
 fields—Plan Issue, for example, understands `agents_directory_map`, `label_explanations`, and
 `tool_guidance`; Grep optionally understands `grep.default_model` (one of the model aliases) and
-`grep.fragments` (named include/exclude regex lists, optionally further split via `splits`). At
-runtime the merge order is:
+`grep.fragments` (named include/exclude regex lists, optionally further split via `splits`); Oracle
+supports `oracle.default_model` plus `oracle.fragments` (named include/exclude regex lists without
+splits). At runtime the merge order is:
 
 1. global `agent`
 2. command-specific `<command>.agent` (if present)
@@ -104,6 +108,15 @@ grep:
         - "^apps/web/"
       exclude:
         - "\\.stories\\.tsx$"
+
+oracle:
+  default_model: gemini-3-pro
+  fragments:
+    - name: apis
+      include: ["^services/api/"]
+      exclude: ["\\.test\\.ts$"]
+    - name: frontend
+      include: ["^apps/web/"]
 
 agent:
   tool: codex

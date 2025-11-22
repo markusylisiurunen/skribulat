@@ -33,12 +33,15 @@ All scripts live under the `scripts` folder (e.g., `scripts/commit.ts`).
   (via `tokenx` library), plus total token estimate. Useful for preparing codebase context for LLM
   prompts or assessing context window requirements.
 - `oracle.ts`: CLI for oracle-style Q&A. Supports prompts (`-p`) or piped stdin (when `-p` is
-  omitted), regex file attachments/excludes (`-i`/`-e`), continuation by UUID (`-c`), model override
-  (`-m`, default `google/gemini-3-pro-preview`), detached background runs (`-d`), waiting
-  (`-w`/`-t`), dry-run inspection (`--dry-run`), and always prints the session UUID. Uses OpenRouter
-  to answer, persisting session JSON under `~/.skribulat/oracle`. Attachment limits: per file max
-  5,000 lines or 100k characters; per turn total max 50k lines or 1M characters. Non-UTF8 (likely
-  binary) files are skipped with a warning; oversized files/turns error before sending to the model.
+  omitted), regex file attachments/excludes (`-i`/`-e`), fragment attachments configured under
+  `oracle.fragments` (`-f/--fragment`, can be combined with `-i/-e` which only affect ad-hoc
+  filters), continuation by UUID (`-c`), model override (`-m`, default configurable via
+  `oracle.default_model`, fallback `google/gemini-3-pro-preview`), detached background runs (`-d`),
+  waiting (`-w`/`-t`), dry-run inspection (`--dry-run`), and always prints the session UUID. Uses
+  OpenRouter to answer, persisting session JSON under `~/.skribulat/oracle`. Attachment limits: per
+  file max 5,000 lines or 100k characters; per turn total max 50k lines or 1M characters. Non-UTF8
+  (likely binary) files are skipped with a warning; oversized files/turns error before sending to
+  the model.
 - `grep.ts`: Fragment-aware code grep assistant. Defaults to model alias `gemini-2.5-flash-lite`
   with low reasoning effort. Supports `-p/--prompt` (required) with either fragment selection
   (`-f/--fragment <name>` repeatable, defaults to all; or `-a/--all-fragments`) **or** ad-hoc regex

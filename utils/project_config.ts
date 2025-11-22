@@ -38,10 +38,22 @@ export type GrepConfig = {
   defaultModel?: string;
 };
 
+export type OracleFragmentConfig = {
+  name: string;
+  include: string[];
+  exclude?: string[];
+};
+
+export type OracleConfig = {
+  fragments?: OracleFragmentConfig[];
+  defaultModel?: string;
+};
+
 export type ProjectConfig = {
   agent?: AgentToolConfig;
   planIssue?: PlanIssueConfig;
   grep?: GrepConfig;
+  oracle?: OracleConfig;
   workOnIssue?: AgentConfigSection;
   workOnPr?: AgentConfigSection;
 };
@@ -75,6 +87,10 @@ function parseYaml(contents: string): ProjectConfig {
   const grep = grepRaw && typeof grepRaw === "object"
     ? normalizeGrepConfig(grepRaw as Record<string, unknown>)
     : undefined;
+  const oracleRaw = root["oracle"];
+  const oracle = oracleRaw && typeof oracleRaw === "object"
+    ? normalizeOracleConfig(oracleRaw as Record<string, unknown>)
+    : undefined;
   const workOnIssueRaw = root["work_on_issue"];
   const workOnIssue = workOnIssueRaw && typeof workOnIssueRaw === "object"
     ? normalizeAgentSection(workOnIssueRaw as Record<string, unknown>)
@@ -87,6 +103,7 @@ function parseYaml(contents: string): ProjectConfig {
     agent,
     planIssue,
     grep,
+    oracle,
     workOnIssue,
     workOnPr,
   };
@@ -197,6 +214,36 @@ function normalizeGrepConfig(raw: Record<string, unknown>): GrepConfig {
       config.fragments = fragments;
     }
   }
+  return config;
+}
+
+function normalizeOracleConfig(raw: Record<string, unknown>): OracleConfig {
+  const config: OracleConfig = {};
+  const defaultModelRaw = raw["default_model"];
+  if (typeof defaultModelRaw === "string" && defaultModelRaw.trim().length > 0) {
+    config.defaultModel = defaultModelRaw.trim();
+  }
+
+  const fragmentsRaw = raw["fragments"];
+  if (Array.isArray(fragmentsRaw)) {
+    const fragments: OracleFragmentConfig[] = [];
+    for (const entry of fragmentsRaw) {
+      if (!entry || typeof entry !== "object") continue;
+      const record = entry as Record<string, unknown>;
+      const nameRaw = record["name"];
+      const includeRaw = record["include"];
+      const excludeRaw = record["exclude"];
+      const name = typeof nameRaw === "string" ? nameRaw.trim() : "";
+      const include = toStringArray(includeRaw);
+      const exclude = toStringArray(excludeRaw);
+      if (!name || include.length === 0) continue;
+      fragments.push({ name, include, exclude: exclude.length > 0 ? exclude : undefined });
+    }
+    if (fragments.length > 0) {
+      config.fragments = fragments;
+    }
+  }
+
   return config;
 }
 

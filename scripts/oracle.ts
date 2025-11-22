@@ -6,7 +6,9 @@ import {
 } from "../utils/codebase_snapshot.ts";
 import { loadEnv } from "../utils/env.ts";
 import { CliError, printCliError } from "../utils/errors.ts";
+import { resolveRepoRoot } from "../utils/git.ts";
 import { generateCompletion } from "../utils/llm.ts";
+import { loadProjectConfig, type OracleFragmentConfig } from "../utils/project_config.ts";
 
 type SessionStatus = "pending" | "running" | "completed" | "failed";
 
@@ -35,6 +37,7 @@ type SessionState = {
 type ParsedArgs = {
   include: RegExp[];
   exclude: RegExp[];
+  fragmentNames: string[];
   prompt?: string;
   stdinText?: string;
   detached: boolean;
@@ -62,6 +65,12 @@ const MODEL_ALIASES = {
 type ModelAlias = keyof typeof MODEL_ALIASES;
 const DEFAULT_MODEL_ALIAS: ModelAlias = "gemini-3-pro";
 
+type Fragment = {
+  name: string;
+  include: RegExp[];
+  exclude: RegExp[];
+};
+
 const MODEL_CONFIG: Record<
   ModelAlias,
   {
@@ -80,7 +89,7 @@ function printSessionId(id: string) {
   console.log(`Session: ${id}`);
 }
 
-function usage() {
+function usage(defaultModel: ModelAlias) {
   console.log(
     [
       "Usage: skribulat oracle [options]",
@@ -95,13 +104,14 @@ function usage() {
       "",
       "Options:",
       "  -p, --prompt <text>      Question or instruction for the oracle",
+      "  -f, --fragment <name>    Fragment to attach (repeatable; configured under oracle.fragments)",
       "  -i, --include <pattern>  Regex for files to attach (repeatable)",
       "  -e, --exclude <pattern>  Regex for files to exclude (repeatable)",
       "  -d, --detached           Run query in a detached background process (prints session UUID)",
       "  -c, --continue <uuid>    Append a follow-up message to an existing session",
       "  -w, --wait <uuid>        Wait for a detached session to finish",
       "  -t, --timeout <seconds>  Maximum seconds to wait with -w (default 30)",
-      "  -m, --model <name>       Model alias: gemini-3-pro | gemini-2.5-flash | gpt-5.1 | gpt-5.1-pro",
+      `  -m, --model <name>       Model alias: gemini-3-pro | gemini-2.5-flash | gpt-5.1 | gpt-5.1-pro (default ${defaultModel})`,
       "      --dry-run            Show what would be sent without calling the model",
       "  -h, --help               Show this help message",
     ].join("\n"),
@@ -117,23 +127,65 @@ function compileRegex(flag: string, pattern: string): RegExp {
   }
 }
 
-function parseArgs(argv: readonly string[]): ParsedArgs {
+function resolveDefaultModelAlias(configModel?: string): ModelAlias {
+  if (!configModel) return DEFAULT_MODEL_ALIAS;
+  if (!(configModel in MODEL_ALIASES)) {
+    throw new CliError(
+      `Invalid oracle.default_model "${configModel}". Allowed: ${
+        Object.keys(MODEL_ALIASES).join(", ")
+      }.`,
+    );
+  }
+  return configModel as ModelAlias;
+}
+
+function compileFragmentConfig(config: OracleFragmentConfig): Fragment | null {
+  const include = config.include.map((pattern) => compileRegex(config.name, pattern));
+  const exclude = (config.exclude ?? []).map((pattern) => compileRegex(config.name, pattern));
+  if (include.length === 0) return null;
+  return { name: config.name, include, exclude };
+}
+
+function resolveFragments(
+  fragmentNames: string[],
+  configured: OracleFragmentConfig[] | undefined,
+): Fragment[] {
+  if (fragmentNames.length === 0) return [];
+  const available = (configured ?? []).map(compileFragmentConfig).filter(Boolean) as Fragment[];
+  if (available.length === 0) {
+    throw new CliError("No fragments configured. Add oracle.fragments to .skribulat/config.yaml.");
+  }
+  const byName = new Map(available.map((fragment) => [fragment.name, fragment] as const));
+  const selected: Fragment[] = [];
+  for (const name of fragmentNames) {
+    const fragment = byName.get(name);
+    if (!fragment) {
+      const known = available.map((frag) => frag.name).join(", ");
+      throw new CliError(`Unknown fragment "${name}". Known fragments: ${known || "none"}.`);
+    }
+    selected.push(fragment);
+  }
+  return selected;
+}
+
+function parseArgs(argv: readonly string[], defaultModel: ModelAlias): ParsedArgs {
   const include: RegExp[] = [];
   const exclude: RegExp[] = [];
+  const fragmentNames: string[] = [];
   let prompt: string | undefined;
   let detached = false;
   let continueId: string | undefined;
   let waitId: string | undefined;
   let timeoutSeconds = DEFAULT_TIMEOUT;
   let internalProcessId: string | undefined;
-  let model: ModelAlias = DEFAULT_MODEL_ALIAS;
+  let model: ModelAlias = defaultModel;
   let modelProvided = false;
   let dryRun = false;
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === "-h" || arg === "--help") {
-      usage();
+      usage(defaultModel);
       Deno.exit(0);
     }
     if (arg === "-p" || arg === "--prompt") {
@@ -144,6 +196,18 @@ function parseArgs(argv: readonly string[]): ParsedArgs {
     if (arg.startsWith("--prompt=")) {
       prompt = arg.slice("--prompt=".length);
       if (!prompt) throw new CliError("--prompt flag requires a value.");
+      continue;
+    }
+    if (arg === "-f" || arg === "--fragment") {
+      const value = argv[++i];
+      if (!value) throw new CliError(`${arg} flag requires a value.`);
+      fragmentNames.push(value.trim());
+      continue;
+    }
+    if (arg.startsWith("--fragment=")) {
+      const value = arg.slice("--fragment=".length);
+      if (!value) throw new CliError("--fragment flag requires a value.");
+      fragmentNames.push(value.trim());
       continue;
     }
     if (arg === "-i" || arg === "--include") {
@@ -257,6 +321,7 @@ function parseArgs(argv: readonly string[]): ParsedArgs {
   return {
     include,
     exclude,
+    fragmentNames,
     prompt,
     stdinText: undefined,
     detached,
@@ -368,6 +433,43 @@ async function collectAttachments(
   return { attachments, warnings };
 }
 
+function collectSelectedEntries(
+  fragments: Fragment[],
+  include: RegExp[],
+  exclude: RegExp[],
+): FileEntry[] {
+  const combined: FileEntry[] = [];
+  const seen = new Set<string>();
+  const repoRoot = fragments.length > 0 ? resolveRepoRoot() : undefined;
+
+  const addEntries = (entries: FileEntry[]) => {
+    for (const entry of entries) {
+      if (seen.has(entry.cwdRelativePosix)) continue;
+      seen.add(entry.cwdRelativePosix);
+      combined.push(entry);
+    }
+  };
+
+  if (repoRoot) {
+    for (const fragment of fragments) {
+      const entries = buildFilteredFileEntries({
+        include: fragment.include,
+        exclude: fragment.exclude,
+        cwd: repoRoot,
+        repoRoot,
+      });
+      addEntries(entries);
+    }
+  }
+
+  if (include.length > 0) {
+    const entries = buildFilteredFileEntries({ include, exclude });
+    addEntries(entries);
+  }
+
+  return combined;
+}
+
 function ensurePromptProvided(prompt?: string) {
   if (!prompt || prompt.trim().length === 0) {
     throw new CliError("Prompt (-p/--prompt) is required.");
@@ -380,7 +482,7 @@ function validateIntent(args: ParsedArgs) {
   const isInternal = !!args.internalProcessId;
   const activeModes = [isAsk, isWait, isInternal].filter(Boolean).length;
   if (activeModes === 0) {
-    usage();
+    usage(DEFAULT_MODEL_ALIAS);
     throw new CliError("No action specified. Provide a prompt or use --wait.");
   }
   if (activeModes > 1) {
@@ -390,13 +492,11 @@ function validateIntent(args: ParsedArgs) {
 
 async function buildSessionState(
   prompt: string,
-  include: RegExp[],
-  exclude: RegExp[],
+  entries: FileEntry[],
   continueId?: string,
   modelProvided?: boolean,
   model: ModelAlias = DEFAULT_MODEL_ALIAS,
 ): Promise<{ state: SessionState; warnings: string[] }> {
-  const entries = include.length === 0 ? [] : buildFilteredFileEntries({ include, exclude });
   const { attachments, warnings } = await collectAttachments(entries);
   const now = new Date().toISOString();
 
@@ -531,12 +631,10 @@ function printSessionResult(state: SessionState) {
   }
 }
 
-async function handleAskFlow(args: ParsedArgs) {
+async function handleAskFlow(args: ParsedArgs, fragments: Fragment[]) {
   ensurePromptProvided(args.prompt);
+  const entries = collectSelectedEntries(fragments, args.include, args.exclude);
   if (args.dryRun) {
-    const entries = args.include.length === 0
-      ? []
-      : buildFilteredFileEntries({ include: args.include, exclude: args.exclude });
     const warnings: string[] = [];
     let totalLines = 0;
     let totalChars = 0;
@@ -584,8 +682,7 @@ async function handleAskFlow(args: ParsedArgs) {
 
   const { state, warnings } = await buildSessionState(
     args.prompt!,
-    args.include,
-    args.exclude,
+    entries,
     args.continueId,
     args.modelProvided,
     args.model,
@@ -646,7 +743,10 @@ function appendStdinToPrompt(prompt: string, stdinText?: string): string {
 
 export async function runOracle(argv: string[]) {
   await loadEnv();
-  const parsed = parseArgs(argv);
+  const projectConfig = loadProjectConfig();
+  const defaultModel = resolveDefaultModelAlias(projectConfig.oracle?.defaultModel);
+  const parsed = parseArgs(argv, defaultModel);
+  const fragments = resolveFragments(parsed.fragmentNames, projectConfig.oracle?.fragments);
 
   const stdinPrompt = await readPromptFromStdin();
   if (stdinPrompt) {
@@ -672,7 +772,7 @@ export async function runOracle(argv: string[]) {
     return;
   }
 
-  await handleAskFlow(parsed);
+  await handleAskFlow(parsed, fragments);
 }
 
 if (import.meta.main) {
