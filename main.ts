@@ -1,4 +1,3 @@
-import { runAskCodebase } from "./scripts/ask_codebase.ts";
 import { runBuildAgentRunner } from "./scripts/build_agent_runner.ts";
 import { runCommit } from "./scripts/commit.ts";
 import { runExec } from "./scripts/exec.ts";
@@ -14,7 +13,6 @@ import { CliError, printCliError } from "./utils/errors.ts";
 type CommandHandler = (args: string[]) => Promise<void> | void;
 
 const COMMANDS: Record<string, CommandHandler> = {
-  "ask-codebase": runAskCodebase,
   "build-agent-runner": runBuildAgentRunner,
   "commit": runCommit,
   "exec": runExec,
@@ -31,7 +29,6 @@ function printUsage() {
   console.log(
     `Usage: skribulat <command> [options]\n\n` +
       `Commands:\n` +
-      `  ask-codebase            Send a codebase snapshot and question to an LLM.\n` +
       `  build-agent-runner      Build a Docker image for running local agents.\n` +
       `  commit                  Generate and apply AI-assisted commit messages.\n` +
       `  exec                    Propose and optionally run an AI-generated shell command.\n` +

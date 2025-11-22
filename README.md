@@ -22,14 +22,13 @@ Skribulat is a Deno-based command-line toolkit for AI-assisted repo workflows.
   it.
 - `review` – generate an optimized code review prompt from a git diff (piped via stdin), including
   full content of modified files.
-- `markdown-codebase` – render git-visible files (tracked plus untracked, non-ignored) as Markdown
-  or emit stats.
-- `ask-codebase` – capture the same filtered snapshot and forward it, along with your question, to
-  an OpenRouter model (no snapshot is echoed to stdout).
-- `oracle` – ask free-form questions with optional file attachments (same include/exclude filters).
-  Per-file attachments capped at 5,000 lines/100k chars and 50k lines/1M chars per turn; non-UTF8
-  files are skipped with warnings. Supports continuation by session UUID, detached/background runs,
-  wait mode, and dry-run inspection.
+- `markdown-codebase` – render git-visible files (tracked plus untracked, non-ignored) from the
+  current working tree as Markdown or emit stats. Deleted files are skipped; new unignored files are
+  included.
+- `oracle` – ask free-form questions with optional file attachments (same include/exclude filters);
+  accepts `-p` or piped stdin when `-p` is omitted. Per-file attachments capped at 5,000 lines/100k
+  chars and 50k lines/1M chars per turn; non-UTF8 files are skipped with warnings. Supports
+  continuation by session UUID, detached/background runs, wait mode, and dry-run inspection.
 - `plan-issue` – post a structured implementation plan for a GitHub issue. Supports `--agent`,
   `--model`, and `--codex-auth <path>` to copy an existing host `auth.json` into the container
   before falling back to API-key login.

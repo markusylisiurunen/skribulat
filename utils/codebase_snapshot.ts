@@ -54,7 +54,18 @@ function collectGitVisibleFiles(repoRoot: string): string[] {
       .forEach((entry) => uniquePaths.add(entry));
   }
 
-  return Array.from(uniquePaths);
+  return Array.from(uniquePaths).filter((repoRelativePath) => {
+    const absolutePath = join(repoRoot, repoRelativePath);
+    try {
+      const stat = Deno.statSync(absolutePath);
+      // Skip directories or vanished files (e.g., git-tracked but deleted in the working tree).
+      return !stat.isDirectory;
+    } catch (error) {
+      // If the file no longer exists, just ignore it instead of failing downstream.
+      if (error instanceof Deno.errors.NotFound) return false;
+      throw error;
+    }
+  });
 }
 
 function buildFileEntries(repoRoot: string, cwd: string): FileEntry[] {

@@ -623,9 +623,24 @@ async function handleInternalProcess(id: string) {
   }
 }
 
+async function readPromptFromStdin(): Promise<string | undefined> {
+  if (Deno.stdin.isTerminal()) return undefined;
+  const raw = await new Response(Deno.stdin.readable).text();
+  const trimmed = raw.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
 export async function runOracle(argv: string[]) {
   await loadEnv();
   const parsed = parseArgs(argv);
+
+  if (!parsed.prompt && !parsed.waitId && !parsed.internalProcessId) {
+    const stdinPrompt = await readPromptFromStdin();
+    if (stdinPrompt) {
+      parsed.prompt = stdinPrompt;
+    }
+  }
+
   validateIntent(parsed);
 
   if (parsed.internalProcessId) {

@@ -24,25 +24,21 @@ All scripts live under the `scripts` folder (e.g., `scripts/commit.ts`).
   single-line command proposal, prompts for confirmation (editable). Executes via user's `$SHELL`
   (zsh only supported). Records command to zsh history (`$HISTFILE` or `~/.zsh_history`).
 - `markdown_codebase.ts`: Emits markdown snapshot of git-visible files (tracked plus untracked,
-  non-ignored) under current directory. Runs `git ls-files` from repo root, filters to files within
-  cwd (excludes `..` paths), converts paths to POSIX format. Supports `-i`/`--include` and
-  `-e`/`--exclude` regex filters (repeatable). Default output: directory structure section (grouped
-  by directory) + file contents section (each file wrapped in `<file path="...">` tags). With
-  `--stats` flag: prints lines and estimated token count per file (via `tokenx` library), plus total
-  token estimate. Useful for preparing codebase context for LLM prompts or assessing context window
-  requirements.
-- `oracle.ts`: CLI for oracle-style Q&A. Supports prompts (`-p`), regex file attachments/excludes
-  (`-i`/`-e` matching `ask-codebase` behavior), continuation by UUID (`-c`), model override (`-m`,
-  default `google/gemini-3-pro-preview`), detached background runs (`-d`), waiting (`-w`/`-t`),
-  dry-run inspection (`--dry-run`), and always prints the session UUID. Uses OpenRouter to answer,
-  persisting session JSON under `~/.skribulat/oracle`. Attachment limits: per file max 5,000 lines
-  or 100k characters; per turn total max 50k lines or 1M characters. Non-UTF8 (likely binary) files
-  are skipped with a warning; oversized files/turns error before sending to the model.
-- `ask_codebase.ts`: Builds the same filtered snapshot as `markdown_codebase.ts`, but instead of
-  printing it, routes the directory structure + `<file>` blocks to an OpenRouter model along with a
-  required question/prompt. Supports the same include/exclude regex flags plus `--model`,
-  `--question`, and `--dry-run` (lists matching files with line counts instead of querying). Never
-  echoes the snapshot or prompt to stdout—only the model's response.
+  non-ignored) under current directory based on the live working tree. Files that are gitignored or
+  deleted from the working tree are excluded; new unignored files are included. Runs `git ls-files`
+  from repo root, filters to files within cwd (excludes `..` paths), converts paths to POSIX format.
+  Supports `-i`/`--include` and `-e`/`--exclude` regex filters (repeatable). Default output:
+  directory structure section (grouped by directory) + file contents section (each file wrapped in
+  `<file path="...">` tags). With `--stats` flag: prints lines and estimated token count per file
+  (via `tokenx` library), plus total token estimate. Useful for preparing codebase context for LLM
+  prompts or assessing context window requirements.
+- `oracle.ts`: CLI for oracle-style Q&A. Supports prompts (`-p`) or piped stdin (when `-p` is
+  omitted), regex file attachments/excludes (`-i`/`-e`), continuation by UUID (`-c`), model override
+  (`-m`, default `google/gemini-3-pro-preview`), detached background runs (`-d`), waiting
+  (`-w`/`-t`), dry-run inspection (`--dry-run`), and always prints the session UUID. Uses OpenRouter
+  to answer, persisting session JSON under `~/.skribulat/oracle`. Attachment limits: per file max
+  5,000 lines or 100k characters; per turn total max 50k lines or 1M characters. Non-UTF8 (likely
+  binary) files are skipped with a warning; oversized files/turns error before sending to the model.
 - `plan_issue.ts`: Analyzes GitHub issues and posts comprehensive implementation plans. Supports
   `--issue <number>` or interactive selection plus optional `--agent <tool>`, `--model <name>`, and
   `--codex-auth <path>` to copy a host Codex `auth.json` into the container before running (falls
