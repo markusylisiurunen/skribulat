@@ -20,7 +20,7 @@ const MODEL_ALIASES: Record<string, AllowedModel> = {
 
 type ModelConfig = {
   maxTokens: number;
-  reasoningEffort?: "minimal" | "low" | "medium" | "high";
+  reasoningEffort?: "none" | "minimal" | "low" | "medium" | "high";
   reasoningMaxTokens?: number;
 };
 const MODEL_CONFIG: Record<AllowedModel, ModelConfig> = {

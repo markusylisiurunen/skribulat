@@ -1,11 +1,13 @@
 type ChatMessage = { role: "system" | "user" | "assistant"; content: string };
 
 type GenerateCompletionArgs = {
+  disableReasoning?: boolean;
   maxTokens?: number;
   messages?: ChatMessage[];
   model: string;
   prompt?: string;
-  reasoningEffort?: "minimal" | "low" | "medium" | "high";
+  provider?: { order?: string[]; allowFallbacks?: boolean };
+  reasoningEffort?: "none" | "minimal" | "low" | "medium" | "high";
   reasoningMaxTokens?: number;
   systemInstructions?: string;
   temperature?: number;
@@ -33,8 +35,10 @@ export async function generateCompletion(args: GenerateCompletionArgs) {
   if (args.systemInstructions && args.messages && args.messages.length > 0) {
     messages.unshift({ role: "system", content: args.systemInstructions });
   }
-  let reasoning: Record<string, unknown> = { enabled: false };
-  if ((args.reasoningMaxTokens ?? 0) > 0) {
+  let reasoning: Record<string, unknown> | undefined = undefined;
+  if (args.disableReasoning) {
+    reasoning = { enabled: false };
+  } else if ((args.reasoningMaxTokens ?? 0) > 0) {
     reasoning = { enabled: true, max_tokens: args.reasoningMaxTokens };
   } else if (args.reasoningEffort) {
     reasoning = { enabled: true, effort: args.reasoningEffort };
@@ -46,6 +50,9 @@ export async function generateCompletion(args: GenerateCompletionArgs) {
       model: args.model,
       reasoning,
       temperature: args.temperature,
+      provider: args.provider
+        ? { order: args.provider.order, allow_fallbacks: args.provider.allowFallbacks }
+        : undefined,
     }),
     headers: {
       "Authorization": `Bearer ${apiKey}`,

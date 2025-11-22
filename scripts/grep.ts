@@ -43,15 +43,33 @@ const MODEL_ALIASES = {
   "gemini-3-pro": "google/gemini-3-pro-preview",
   "gemini-2.5-flash": "google/gemini-2.5-flash-preview-09-2025",
   "gpt-5.1": "openai/gpt-5.1",
+  "qwen3-32b": "qwen/qwen3-32b",
 } as const;
 
 const MODEL_CONFIG: Record<
   ModelAlias,
-  { maxTokens: number; reasoningEffort?: "minimal" | "low" | "medium" | "high" }
+  {
+    maxTokens: number;
+    reasoningEffort?: "none" | "minimal" | "low" | "medium" | "high";
+    provider?: { order?: string[]; allowFallbacks?: boolean };
+  }
 > = {
-  "gemini-3-pro": { maxTokens: 8192, reasoningEffort: "low" },
-  "gemini-2.5-flash": { maxTokens: 8192, reasoningEffort: "low" },
-  "gpt-5.1": { maxTokens: 8192, reasoningEffort: "minimal" },
+  "gemini-3-pro": {
+    maxTokens: 8192,
+    reasoningEffort: "low",
+  },
+  "gemini-2.5-flash": {
+    maxTokens: 8192,
+    reasoningEffort: "low",
+  },
+  "gpt-5.1": {
+    maxTokens: 8192,
+    reasoningEffort: "none",
+  },
+  "qwen3-32b": {
+    maxTokens: 8192,
+    provider: { order: ["cerebras", "groq"], allowFallbacks: false },
+  },
 };
 
 const DEFAULT_MODEL: ModelAlias = "gemini-2.5-flash";
@@ -77,7 +95,7 @@ function usage() {
       "  -p, --prompt <text>    Query to run against the codebase (required)",
       "  -f, --fragment <name>  Fragment to search (repeatable; defaults to all)",
       "  -a, --all-fragments    Search all fragments (ignores any -f flags)",
-      "  -m, --model <alias>    Model alias: gemini-2.5-flash | gemini-3-pro | gpt-5.1",
+      "  -m, --model <alias>    Model alias: gemini-2.5-flash | gemini-3-pro | gpt-5.1 | qwen3-32b",
       "  -h, --help             Show this help message",
     ].join("\n"),
   );
@@ -148,7 +166,7 @@ function parseArgs(argv: readonly string[]): ParsedArgs {
       if (!value) throw new CliError(`${arg} requires a value.`);
       if (!(value in MODEL_ALIASES)) {
         throw new CliError(
-          "Invalid model alias. Allowed: gemini-2.5-flash, gemini-3-pro, gpt-5.1.",
+          "Invalid model alias. Allowed: gemini-2.5-flash, gemini-3-pro, gpt-5.1, qwen3-32b.",
         );
       }
       model = value as ModelAlias;
@@ -159,7 +177,7 @@ function parseArgs(argv: readonly string[]): ParsedArgs {
       if (!value) throw new CliError("--model requires a value.");
       if (!(value in MODEL_ALIASES)) {
         throw new CliError(
-          "Invalid model alias. Allowed: gemini-2.5-flash, gemini-3-pro, gpt-5.1.",
+          "Invalid model alias. Allowed: gemini-2.5-flash, gemini-3-pro, gpt-5.1, qwen3-32b.",
         );
       }
       model = value as ModelAlias;
@@ -335,6 +353,7 @@ async function searchFragment(
       { role: "user", content: buildUserPrompt(prompt, attachments) },
     ],
     reasoningEffort: cfg.reasoningEffort,
+    provider: cfg.provider,
   });
 
   return { name: fragment.name, response: completion.trim(), warnings };
@@ -416,11 +435,9 @@ export async function runGrep(argv: string[]) {
       return;
     }
 
-    const results: Array<{ name: string; response: string; warnings: string[] }> = [];
-    for (const fragment of fragments) {
-      const result = await searchFragment(args.prompt, fragment, args.model);
-      results.push(result);
-    }
+    const results = await Promise.all(
+      fragments.map((fragment) => searchFragment(args.prompt, fragment, args.model)),
+    );
 
     for (const result of results) {
       console.log(`== ${result.name} ==`);

@@ -6,7 +6,7 @@ export type AgentToolConfig = {
   env?: Record<string, string>;
   envPassthrough?: string[];
   model?: string;
-  reasoningEffort?: "minimal" | "low" | "medium" | "high";
+  reasoningEffort?: "none" | "minimal" | "low" | "medium" | "high";
   tool?: "codex" | "claude-code" | "shell";
 };
 
@@ -225,7 +225,10 @@ function normalizeReasoningEffort(
 ): AgentToolConfig["reasoningEffort"] | undefined {
   if (!value) return undefined;
   const effort = value.toLowerCase();
-  if (effort === "minimal" || effort === "low" || effort === "medium" || effort === "high") {
+  if (
+    effort === "none" || effort === "minimal" || effort === "low" || effort === "medium" ||
+    effort === "high"
+  ) {
     return effort;
   }
   return undefined;
@@ -291,7 +294,10 @@ function normalizeAgentConfig(raw: Record<string, unknown>): AgentToolConfig {
   }
   if (typeof raw["reasoning_effort"] === "string") {
     const effort = raw["reasoning_effort"].toLowerCase();
-    if (effort === "minimal" || effort === "low" || effort === "medium" || effort === "high") {
+    if (
+      effort === "none" || effort === "minimal" || effort === "low" || effort === "medium" ||
+      effort === "high"
+    ) {
       agent.reasoningEffort = effort;
     }
   }

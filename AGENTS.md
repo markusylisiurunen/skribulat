@@ -42,11 +42,13 @@ All scripts live under the `scripts` folder (e.g., `scripts/commit.ts`).
 - `grep.ts`: Fragment-aware code grep assistant. Defaults to model alias `gemini-2.5-flash` with low
   reasoning effort. Supports `-p/--prompt` (required), `-f/--fragment <name>` (repeatable; defaults
   to all available fragments), `-a/--all-fragments` to force searching every fragment, and
-  `-m/--model` alias matching `oracle`. Each fragment is sent as a separate LLM call with attached
-  files matching its regex filters; responses are aggregated and printed with fragment headings.
-  Running `skribulat grep fragments` lists fragments and matching file counts/line/token stats
-  without calling the model. Fragment scans are capped at 50k lines or 1M characters; exceeding the
-  cap errors with the fragment name.
+  `-m/--model` alias matching `oracle` (gemini-2.5-flash default; gemini-3-pro, gpt-5.1, qwen3-32b
+  also available). Each fragment is sent as a separate LLM call with attached files matching its
+  regex filters; responses are aggregated and printed with fragment headings. Running
+  `skribulat grep
+  fragments` lists fragments and matching file counts/line/token stats without
+  calling the model. Fragment scans are capped at 50k lines or 1M characters; exceeding the cap
+  errors with the fragment name.
 - `plan_issue.ts`: Analyzes GitHub issues and posts comprehensive implementation plans. Supports
   `--issue <number>` or interactive selection plus optional `--agent <tool>`, `--model <name>`, and
   `--codex-auth <path>` to copy a host Codex `auth.json` into the container before running (falls

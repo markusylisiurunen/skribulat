@@ -27,9 +27,9 @@ Skribulat is a Deno-based command-line toolkit for AI-assisted repo workflows.
   included.
 - `grep` – fragment-aware, model-powered grep. Provide `-p/--prompt` and optional `-f/--fragment`
   selectors; use `-a/--all-fragments` to include every fragment without listing them. Each fragment
-  is searched in a separate LLM call with concise, path-cited results. `skribulat grep fragments`
-  lists configured fragments with file/line/token stats (limited to 50k lines or 1M chars per
-  fragment).
+  is searched in a separate LLM call with concise, path-cited results. Model aliases:
+  gemini-2.5-flash (default), gemini-3-pro, gpt-5.1, qwen3-32b. `skribulat grep fragments` lists
+  configured fragments with file/line/token stats (limited to 50k lines or 1M chars per fragment).
 - `oracle` – ask free-form questions with optional file attachments (same include/exclude filters);
   accepts `-p` or piped stdin when `-p` is omitted. Per-file attachments capped at 5,000 lines/100k
   chars and 50k lines/1M chars per turn; non-UTF8 files are skipped with warnings. Supports

@@ -66,7 +66,7 @@ const MODEL_CONFIG: Record<
   ModelAlias,
   {
     maxTokens: number;
-    reasoningEffort?: "minimal" | "low" | "medium" | "high";
+    reasoningEffort?: "none" | "minimal" | "low" | "medium" | "high";
     reasoningMaxTokens?: number;
   }
 > = {
