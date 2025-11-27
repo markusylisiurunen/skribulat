@@ -53,7 +53,7 @@ Skribulat is a Deno-based command-line toolkit for AI-assisted repo workflows.
 - `plan-and-work-on-issue` – run the planning workflow and immediately hand off to the
   implementation workflow with optional `--agent`/`--model` overrides for the work phase. Accepts
   `--codex-auth` and forwards it to both steps.
-- `prompt` – print a stored prompt template from `prompts/templates`. Example:
+- `prompt` – print a stored prompt template from `prompts/templates` (Markdown). Example:
   `skribulat prompt rewrite-prompt`.
 - `work-on-issue` – spin up an agent (Codex, Claude Code, or shell) to implement a selected issue
   end-to-end. Supports `--agent`, `--model`, and `--codex-auth` for supplying a host Codex
@@ -226,9 +226,10 @@ inside the container.
 
 Prompt templates live in two places:
 
-- Markdown prompts under `prompts/*.md` (loaded via `utils/prompts.ts`).
+- Markdown prompts under `prompts/system/*.md` (loaded via `utils/prompts.ts`).
 - Markdown prompts under `prompts/templates/*.md` (front matter stripped); view them with
-  `skribulat prompt <name>`.
+  `skribulat prompt <name>` or import `listTemplates`/`loadTemplate` from `prompts/index.ts` (logic
+  moved from `prompts/templates/index.ts`).
 
 You can compile the CLI into an executable; include the markdown prompts or run the binary from a
 checkout that contains them:

@@ -68,7 +68,7 @@ All scripts live under the `scripts` folder (e.g., `scripts/commit.ts`).
   flow from `work_on_issue.ts`. Supports `--issue <number>` or interactive selection, optional
   `--agent`/`--model` overrides for the work step, and `--codex-auth <path>` which is forwarded to
   both plan and work phases.
-- `prompt.ts`: Prints a stored prompt template from `prompts/templates/`. Invoke as
+- `prompt.ts`: Prints a stored prompt template from `prompts/templates/` (Markdown). Invoke as
   `skribulat prompt <name>` (e.g., `skribulat prompt rewrite-prompt`). Front matter is stripped
   before output.
 - `review.ts`: Generates an optimized code review prompt by consuming a git diff from stdin. Parses
@@ -134,7 +134,7 @@ All utility files live under the `utils` folder.
 - `project_config.ts`: Parses `.skribulat/config.yaml` for agent tool configuration and workflow
   settings. Supports hierarchical overrides per command (`plan_issue`, `work_on_issue`,
   `work_on_pr`). Normalizes label mappings to lowercase.
-- `prompts.ts`: Loads markdown prompt templates from `prompts/` and renders them with `{{VARIABLE}}`
+- `prompts.ts`: Loads markdown prompts from `prompts/system/` and renders them with `{{VARIABLE}}`
   substitution (case-insensitive).
 - `text.ts`: Terminal text formatting utilities (console width truncation).
 
@@ -167,10 +167,11 @@ All utility files live under the `utils` folder.
 
 Two template sets exist:
 
-- Markdown prompts under `prompts/*.md` loaded via `utils/prompts.ts` (paired system/user files).
-- Markdown prompts under `prompts/templates/*.md`, loadable with `skribulat prompt <name>`; front
-  matter is stripped before printing. `prompts/templates/index.ts` exposes `listTemplates` and
-  `loadTemplate`.
+- Markdown prompts under `prompts/system/*.md` loaded via `utils/prompts.ts` (paired system/user
+  files).
+- Markdown prompt templates under `prompts/templates/*.md`, loadable with `skribulat prompt <name>`;
+  front matter is stripped before printing. `prompts/index.ts` exposes `listTemplates` and
+  `loadTemplate` for both system and template prompts (logic moved from `prompts/templates`).
 
 ## How to work
 

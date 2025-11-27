@@ -1,4 +1,4 @@
-import { listTemplates, loadTemplate } from "../prompts/templates/index.ts";
+import { listTemplates, loadTemplate } from "../prompts/index.ts";
 import { CliError, printCliError } from "../utils/errors.ts";
 
 async function usage(): Promise<never> {
