@@ -1,4 +1,5 @@
 import { isAbsolute, join } from "@std/path";
+import { parse } from "@std/yaml";
 import {
   Issue,
   IssueBackendKind,
@@ -27,24 +28,24 @@ function parseFrontmatter(contents: string): { meta: Frontmatter; body: string }
   }
   const yamlBlock = trimmed.slice(4, end);
   const body = trimmed.slice(end + 4).trim();
-  const meta: Frontmatter = { title: "", labels: [] };
-  for (const line of yamlBlock.split(/\r?\n/)) {
-    const [rawKey, ...rest] = line.split(":");
-    if (!rawKey || rest.length === 0) continue;
-    const key = rawKey.trim();
-    const value = rest.join(":").trim();
-    if (key === "title") meta.title = value;
-    if (key === "status") meta.status = value;
-    if (key === "created") meta.created = value;
-    if (key === "updated") meta.updated = value;
-    if (key === "url") meta.url = value;
-    if (key === "labels") {
-      const matches = value.match(/\[(.*)\]/);
-      if (matches && matches[1]) {
-        meta.labels = matches[1].split(",").map((item) => item.trim()).filter((item) => item);
-      }
-    }
+
+  let parsed: unknown;
+  try {
+    parsed = parse(yamlBlock);
+  } catch {
+    parsed = {};
   }
+
+  const record = (parsed && typeof parsed === "object" ? parsed : {}) as Record<string, unknown>;
+  const meta: Frontmatter = {
+    title: typeof record.title === "string" ? record.title : "",
+    labels: Array.isArray(record.labels) ? record.labels.map(String) : [],
+    status: typeof record.status === "string" ? record.status : undefined,
+    created: typeof record.created === "string" ? record.created : undefined,
+    updated: typeof record.updated === "string" ? record.updated : undefined,
+    url: typeof record.url === "string" ? record.url : undefined,
+  };
+
   return { meta, body };
 }
 
