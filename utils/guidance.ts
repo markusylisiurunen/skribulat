@@ -1,8 +1,7 @@
 import { walk } from "@std/fs/walk";
 import { join, relative } from "@std/path";
-import labelGuidancePrompt from "../prompts/label_guidance.ts";
-import toolUseGuidancePrompt from "../prompts/tool_use_guidance.ts";
 import { runCommand } from "./process.ts";
+import { loadPrompt } from "./prompts.ts";
 
 const AGENTS_FILE_NAME = "AGENTS.md";
 
@@ -89,16 +88,18 @@ export async function formatAgentsGuidance(
   return `<agents_guidance>\n${sections.join("\n")}\n</agents_guidance>`;
 }
 
-export function instructEfficientToolUse(override?: string) {
+export async function instructEfficientToolUse(override?: string): Promise<string> {
   if (override && override.trim().length > 0) {
     return override.trim();
   }
-  return toolUseGuidancePrompt;
+  const prompt = await loadPrompt("tool_use_guidance.txt");
+  return prompt.trim();
 }
 
-export function explainIssueLabels(override?: string) {
+export async function explainIssueLabels(override?: string): Promise<string> {
   if (override && override.trim().length > 0) {
     return override.trim();
   }
-  return labelGuidancePrompt;
+  const prompt = await loadPrompt("label_guidance.txt");
+  return prompt.trim();
 }

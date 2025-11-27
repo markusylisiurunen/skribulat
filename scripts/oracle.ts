@@ -9,7 +9,7 @@ import { CliError, printCliError } from "../utils/errors.ts";
 import { resolveRepoRoot } from "../utils/git.ts";
 import { generateCompletion } from "../utils/llm.ts";
 import { loadProjectConfig, type OracleFragmentConfig } from "../utils/project_config.ts";
-import oracleSystemPrompt from "../prompts/oracle_system.ts";
+import { loadPrompt } from "../utils/prompts.ts";
 
 type SessionStatus = "pending" | "running" | "completed" | "failed";
 
@@ -585,12 +585,13 @@ async function buildSessionState(
   };
 }
 
-function buildOracleSystemPrompt(): string {
-  return oracleSystemPrompt.trim();
+async function buildOracleSystemPrompt(): Promise<string> {
+  const prompt = await loadPrompt("oracle_system.txt");
+  return prompt.trim();
 }
 
-function buildOracleMessages(state: SessionState) {
-  const systemContent = buildOracleSystemPrompt();
+async function buildOracleMessages(state: SessionState) {
+  const systemContent = await buildOracleSystemPrompt();
   const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
     { role: "system", content: systemContent },
   ];
@@ -615,10 +616,11 @@ async function answerWithOracle(state: SessionState) {
   await saveSession(state);
   try {
     const cfg = MODEL_CONFIG[state.model] ?? MODEL_CONFIG[DEFAULT_MODEL_ALIAS];
+    const messages = await buildOracleMessages(state);
     const completion = await generateCompletion({
       maxTokens: cfg.maxTokens,
       model: MODEL_ALIASES[state.model],
-      messages: buildOracleMessages(state),
+      messages,
       reasoningEffort: cfg.reasoningEffort,
       reasoningMaxTokens: cfg.reasoningMaxTokens,
     });

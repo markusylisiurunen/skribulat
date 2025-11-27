@@ -197,6 +197,8 @@ export async function runPlanIssue(argv: string[]) {
     : "None found.";
   const systemInstructions = await loadPrompt("plan_issue_system.txt");
   const promptTemplate = await loadPrompt("plan_issue_user.txt");
+  const toolGuidance = await instructEfficientToolUse(planConfig.toolGuidance);
+  const labelExplanations = await explainIssueLabels(planConfig.labelExplanations);
   const issueLabels = issue.labels.length > 0 ? issue.labels.join(", ") : "No labels.";
   const commentsBlock = buildCommentsBlock(comments);
   const userPrompt = renderPrompt(promptTemplate, {
@@ -205,9 +207,9 @@ export async function runPlanIssue(argv: string[]) {
     "{{REPO_NAME}}": cfg.githubRepo,
     "{{ISSUE_URL}}": issue.url ?? "N/A",
     "{{ISSUE_NUMBER}}": issue.number?.toString() ?? issue.id,
-    "{{GUIDE_TOOL_USE}}": instructEfficientToolUse(planConfig.toolGuidance),
+    "{{GUIDE_TOOL_USE}}": toolGuidance,
     "{{AGENTS_GUIDANCE}}": agentsGuidance,
-    "{{LABEL_EXPLANATIONS}}": explainIssueLabels(planConfig.labelExplanations),
+    "{{LABEL_EXPLANATIONS}}": labelExplanations,
     "{{ISSUE_CREATED}}": issue.createdAt ?? "",
     "{{ISSUE_UPDATED}}": issue.updatedAt ?? "",
     "{{ISSUE_LABELS}}": issueLabels,

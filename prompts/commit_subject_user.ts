@@ -1,6 +1,5 @@
 export default `
-Generate 3 commit proposals based on the staged changes below.
-Follow the system constraints (imperative, lowercase, no prefixes).
+Summarize the staged changes below.
 
 <staged_stat>
 {{STAGED_STAT}}

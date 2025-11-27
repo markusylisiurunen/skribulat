@@ -1,4 +1,5 @@
 import branchNameSystem from "./branch_name_system.ts";
+import branchNameUser from "./branch_name_user.ts";
 import commitSubjectSystem from "./commit_subject_system.ts";
 import commitSubjectUser from "./commit_subject_user.ts";
 import execCommandSystem from "./exec_command_system.ts";
@@ -16,6 +17,7 @@ import workOnPr from "./work_on_pr.ts";
 
 export const PROMPT_TEMPLATES: Record<string, string> = {
   "branch_name_system.txt": branchNameSystem,
+  "branch_name_user.txt": branchNameUser,
   "commit_subject_system.txt": commitSubjectSystem,
   "commit_subject_user.txt": commitSubjectUser,
   "exec_command_system.txt": execCommandSystem,

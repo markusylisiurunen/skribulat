@@ -8,7 +8,7 @@ import { CliError, printCliError } from "../utils/errors.ts";
 import { resolveRepoRoot } from "../utils/git.ts";
 import { generateCompletion } from "../utils/llm.ts";
 import { type GrepFragmentConfig, loadProjectConfig } from "../utils/project_config.ts";
-import grepSystemPrompt from "../prompts/grep_system.ts";
+import { loadPrompt } from "../utils/prompts.ts";
 
 type ModelAlias = keyof typeof MODEL_ALIASES;
 
@@ -405,8 +405,9 @@ async function collectAttachments(
   return { attachments, warnings };
 }
 
-function buildSystemPrompt(): string {
-  return grepSystemPrompt.trim();
+async function buildSystemPrompt(): Promise<string> {
+  const prompt = await loadPrompt("grep_system.txt");
+  return prompt.trim();
 }
 
 function buildUserPrompt(prompt: string, attachments: Attachment[]): string {
@@ -456,7 +457,7 @@ async function searchFragment(
       maxTokens: cfg.maxTokens,
       model: MODEL_ALIASES[model],
       messages: [
-        { role: "system", content: buildSystemPrompt() },
+        { role: "system", content: await buildSystemPrompt() },
         { role: "user", content: buildUserPrompt(prompt, attachments) },
       ],
       reasoningEffort: cfg.reasoningEffort,
@@ -503,7 +504,7 @@ async function searchFragment(
         maxTokens: cfg.maxTokens,
         model: MODEL_ALIASES[model],
         messages: [
-          { role: "system", content: buildSystemPrompt() },
+          { role: "system", content: await buildSystemPrompt() },
           { role: "user", content: buildUserPrompt(prompt, job.attachments) },
         ],
         reasoningEffort: cfg.reasoningEffort,

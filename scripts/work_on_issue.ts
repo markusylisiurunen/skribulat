@@ -1,7 +1,5 @@
 import { select } from "@inquirer/prompts";
 import { join } from "@std/path";
-import branchNameSystemPrompt from "../prompts/branch_name_system.ts";
-import prBodySystemPrompt from "../prompts/pr_body_system.ts";
 import { buildRunnerEnv } from "../utils/agent_env.ts";
 import { preserveGitPatch, startPatchCheckpoint } from "../utils/agent_patch.ts";
 import { runAgent } from "../utils/agent_runner.ts";
@@ -77,19 +75,8 @@ async function generateBranchName(
   comments: IssueComment[],
   labels: string[],
 ) {
-  const systemInstructions = branchNameSystemPrompt;
-  const template = `
-Issue metadata:
-
-<labels>{{labels}}</labels>
-<title>{{title}}</title>
-<description>
-{{description}}
-</description>
-<comments>
-{{comments}}
-</comments>
-  `.trim();
+  const systemInstructions = await loadPrompt("branch_name_system.txt");
+  const template = await loadPrompt("branch_name_user.txt");
   const commentsBlock = comments.map((comment) => {
     const body = comment.body?.trim() ?? "No content.";
     return `<comment id="${comment.id}" time="${comment.createdAt}" user="${comment.author}">\n${body}\n</comment>`;
@@ -212,6 +199,7 @@ async function generatePullRequestBody(
   comments: IssueComment[],
   diff: string,
 ) {
+  const prBodySystemPrompt = await loadPrompt("pr_body_system.txt");
   const labelsText = labels.length > 0 ? labels.join(", ") : "No labels.";
   const formattedComments = comments.length > 0
     ? comments.map((comment) => {
@@ -300,13 +288,16 @@ export async function runWorkOnIssue(argv: string[]) {
     : "None found.";
   const issueCommentsBlock = buildIssueCommentsBlock(comments);
   const promptTemplate = await loadPrompt("work_on_issue.txt");
+  const labelExplanations = await explainIssueLabels(
+    projectConfig.planIssue?.labelExplanations,
+  );
   const prompt = renderPrompt(promptTemplate, {
     "{{CURRENT_TIME}}": new Date().toISOString(),
     "{{BRANCH_NAME}}": branchName,
     "{{ISSUE_NUMBER}}": issue.number?.toString() ?? issue.id,
     "{{AGENTS_GUIDANCE}}": agentsGuidanceBlock,
     "{{ALL_AGENTS_FILES}}": allAgentsFilesBlock,
-    "{{LABEL_EXPLANATIONS}}": explainIssueLabels(projectConfig.planIssue?.labelExplanations),
+    "{{LABEL_EXPLANATIONS}}": labelExplanations,
     "{{ISSUE_CREATED}}": issue.createdAt ?? "",
     "{{ISSUE_UPDATED}}": issue.updatedAt ?? "",
     "{{ISSUE_LABELS}}": issue.labels.length > 0 ? issue.labels.join(", ") : "No labels.",
@@ -347,7 +338,7 @@ export async function runWorkOnIssue(argv: string[]) {
     await prepareIssueBranch(runner, branchName, cfg.githubDefaultBranch);
     await runAgentHook(runner, "pre-work");
     await verifyGithubHttps(runner);
-    const toolGuidance = instructEfficientToolUse(projectConfig.planIssue?.toolGuidance);
+    const toolGuidance = await instructEfficientToolUse(projectConfig.planIssue?.toolGuidance);
     const fullPrompt = `${toolGuidance}\n\n${prompt}`;
     stopCheckpoint = startPatchCheckpoint(runner, {
       diffRange,

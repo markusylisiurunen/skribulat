@@ -226,9 +226,10 @@ export async function runWorkOnPr(argv: string[]) {
     ? allAgentsFiles.map((path) => `- ${path}`).join("\n")
     : "None found.";
   const promptTemplate = await loadPrompt("work_on_pr.txt");
+  const labelExplanations = await explainIssueLabels(projectConfig.planIssue?.labelExplanations);
   const prompt = renderPrompt(promptTemplate, {
     "{{CURRENT_TIME}}": new Date().toISOString(),
-    "{{LABEL_EXPLANATIONS}}": explainIssueLabels(projectConfig.planIssue?.labelExplanations),
+    "{{LABEL_EXPLANATIONS}}": labelExplanations,
     "{{AGENTS_GUIDANCE}}": agentsGuidanceBlock,
     "{{ALL_AGENTS_FILES}}": allAgentsFilesBlock,
     "{{COMMENT_IDS}}": [...focus.focusIssue, ...focus.focusReview].join(", "),
