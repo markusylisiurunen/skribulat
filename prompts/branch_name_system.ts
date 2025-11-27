@@ -5,5 +5,5 @@ Try to keep it descriptive yet short (max. 50 characters).
 Avoid generic terms like "feature" or "bug".
 Do not mention the app's name in the branch name.
 The branch name should solely focus on the issue content.
-Respond with exactly one line of text, only containing the branch suffix with no extra commentary.
+Respond with a JSON object {"branch_name":"..."} containing only the branch suffix (no refs, no extra text).
 `.trim();

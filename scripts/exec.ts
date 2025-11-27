@@ -81,26 +81,35 @@ async function extractCommandResponse(instruction: string, model: AllowedModel) 
     prompt,
     reasoningEffort: MODEL_CONFIG[model].reasoningEffort,
     reasoningMaxTokens: MODEL_CONFIG[model].reasoningMaxTokens,
+    responseFormat: { type: "json_object" },
     systemInstructions,
     temperature: 0.2,
   });
 }
 
 function extractCommand(response: string) {
-  const lines = response
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0 && !line.startsWith("```"));
-  if (lines.length === 0) {
-    throw new Error("LLM response did not contain a command to run.");
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(response.trim());
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`LLM response is not valid JSON: ${message}`);
   }
-  const first = lines[0];
-  const match = first.match(/^(?:[0-9]+[.)]\s*)?(.+)$/);
-  const command = match ? match[1].trim() : first;
-  if (!command) {
+  let command: unknown = parsed;
+  if (parsed && typeof parsed === "object" && "command" in parsed) {
+    command = (parsed as Record<string, unknown>).command;
+  }
+  if (typeof command !== "string") {
+    throw new Error("Model JSON response must contain a string 'command' field.");
+  }
+  const trimmed = command.trim();
+  if (trimmed.length === 0) {
     throw new Error("Extracted command is empty.");
   }
-  return command;
+  if (trimmed.includes("\n")) {
+    throw new Error("Command must be a single line.");
+  }
+  return trimmed;
 }
 
 async function proposeCommand(instruction: string, model: AllowedModel) {

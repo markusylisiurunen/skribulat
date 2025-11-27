@@ -108,10 +108,11 @@ Issue metadata:
       model: BRANCH_MODEL,
       prompt,
       reasoningMaxTokens: 64,
+      responseFormat: { type: "json_object" },
       systemInstructions,
       temperature: 0.2,
     });
-    const branchName = raw.trim().split("\n").at(0) ?? "";
+    const branchName = parseBranchName(raw);
     lastBranchName = branchName;
     const isValid = /^[a-z0-9]+(-[a-z0-9]+)*$/.test(branchName);
     if (isValid) return branchName;
@@ -121,6 +122,28 @@ Issue metadata:
     throw new Error(`Generated branch name is empty after sanitization: ${lastBranchName}`);
   }
   return sanitized;
+}
+
+function parseBranchName(response: string) {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(response.trim());
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`LLM response is not valid JSON: ${message}`);
+  }
+  let branchName: unknown = parsed;
+  if (parsed && typeof parsed === "object" && "branch_name" in parsed) {
+    branchName = (parsed as Record<string, unknown>).branch_name;
+  }
+  if (typeof branchName !== "string") {
+    throw new Error("Model JSON response must contain a string 'branch_name' field.");
+  }
+  const trimmed = branchName.trim();
+  if (trimmed.length === 0) {
+    throw new Error("Generated branch name is empty.");
+  }
+  return trimmed;
 }
 
 function buildIssueCommentsBlock(comments: IssueComment[]) {
