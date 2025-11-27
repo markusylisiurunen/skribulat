@@ -112,6 +112,7 @@ async function generatePlanViaAgent(
     await runAgentHook(runner, "pre-work");
     await verifyGithubHttps(runner);
     const plan = await runAgent({
+      anthropicApiKey: envConfig.anthropicApiKey,
       codexAuthPath,
       openAIApiKey: envConfig.openAIApiKey,
       prompt,
