@@ -112,28 +112,26 @@ export class DockerRunner {
     let stdoutDone = false;
     let stderrDone = false;
     let stderrOutput = "";
+    type StreamResult = {
+      stream: "stdout" | "stderr";
+      value: ReadableStreamReadResult<Uint8Array>;
+    };
+    let stdoutPending: Promise<StreamResult> | null = null;
+    let stderrPending: Promise<StreamResult> | null = null;
     while (!stdoutDone || !stderrDone) {
-      const promises: Promise<{
-        stream: "stdout" | "stderr";
-        value: ReadableStreamReadResult<Uint8Array>;
-      }>[] = [];
-      if (!stdoutDone) {
-        promises.push(
-          stdoutReader.read().then((value) => ({
-            stream: "stdout" as const,
-            value,
-          })),
-        );
+      if (!stdoutDone && !stdoutPending) {
+        stdoutPending = stdoutReader.read().then((value) => ({ stream: "stdout" as const, value }));
       }
-      if (!stderrDone) {
-        promises.push(
-          stderrReader.read().then((value) => ({
-            stream: "stderr" as const,
-            value,
-          })),
-        );
+      if (!stderrDone && !stderrPending) {
+        stderrPending = stderrReader.read().then((value) => ({ stream: "stderr" as const, value }));
       }
-      const result = await Promise.race(promises);
+      const races: Promise<StreamResult>[] = [];
+      if (stdoutPending) races.push(stdoutPending);
+      if (stderrPending) races.push(stderrPending);
+      if (races.length === 0) break;
+      const result: StreamResult = await Promise.race(races);
+      if (result.stream === "stdout") stdoutPending = null;
+      if (result.stream === "stderr") stderrPending = null;
       if (result.value.done) {
         if (result.stream === "stdout") {
           stdoutDone = true;

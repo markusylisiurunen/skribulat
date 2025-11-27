@@ -30,6 +30,8 @@ import {
 } from "../utils/project_config.ts";
 import { loadPrompt, renderPrompt } from "../utils/prompts.ts";
 import { fitInConsoleWidth } from "../utils/text.ts";
+import branchNameSystemPrompt from "../prompts/branch_name_system.ts";
+import prBodySystemPrompt from "../prompts/pr_body_system.ts";
 
 const BRANCH_MODEL = "google/gemini-2.5-flash-preview-09-2025";
 const PR_BODY_MODEL = "google/gemini-2.5-flash-preview-09-2025";
@@ -72,15 +74,7 @@ async function generateBranchName(
   comments: GitHubIssueComment[],
   labels: string[],
 ) {
-  const systemInstructions = `
-You generate concise git branch suffixes (without refs) in kebab-case.
-Allowed characters are a-z, 0-9, and hyphens.
-Try to keep it descriptive yet short (max. 50 characters).
-Avoid generic terms like "feature" or "bug".
-Do not mention the app's name in the branch name.
-The branch name should solely focus on the issue content.
-Respond with exactly one line of text, only containing the branch suffix with no extra commentary.
-  `.trim();
+  const systemInstructions = branchNameSystemPrompt;
   const template = `
 Issue metadata:
 
@@ -184,17 +178,7 @@ async function generatePullRequestBody(
     }).join("\n")
     : "No discussion comments.";
   const diffForPrompt = diff.trim().length > 0 ? diff.trim() : "No diff detected.";
-  const systemInstructions = `
-You are drafting a high-quality GitHub pull request description in Markdown.
-Provide a concise overview that helps reviewers understand the changes and why they exist.
-Only use information from the supplied issue context and git diff.
-Never assume, for example, that tests were run unless the diff shows it.
-Always include the following sections:
-- ## Summary (bullet list of key changes)
-- ## Testing (bullet list; if nothing was tested, state "Not tested")
-End with a standalone line: Fixes #${issueNumber}
-Keep the PR body under 500 words while remaining informative.
-  `.trim();
+  const systemInstructions = prBodySystemPrompt.replaceAll("{{ISSUE_NUMBER}}", `${issueNumber}`);
   const prompt = `
 Issue number: #${issueNumber}
 Title: ${issueTitle}

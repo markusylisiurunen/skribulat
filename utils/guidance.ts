@@ -1,5 +1,7 @@
 import { walk } from "@std/fs/walk";
 import { join, relative } from "@std/path";
+import labelGuidancePrompt from "../prompts/label_guidance.ts";
+import toolUseGuidancePrompt from "../prompts/tool_use_guidance.ts";
 
 const AGENTS_FILE_NAME = "AGENTS.md";
 
@@ -78,16 +80,12 @@ export function instructEfficientToolUse(override?: string) {
   if (override && override.trim().length > 0) {
     return override.trim();
   }
-  return [
-    "Tool use guidance:",
-    "- You may and should use repository tooling and automations when helpful.",
-    "- Favor efficient workflows (for example, read complete files once instead of many line ranges).",
-  ].join("\n");
+  return toolUseGuidancePrompt;
 }
 
 export function explainIssueLabels(override?: string) {
   if (override && override.trim().length > 0) {
     return override.trim();
   }
-  return `Refer to the repository's label descriptions for additional context.`;
+  return labelGuidancePrompt;
 }

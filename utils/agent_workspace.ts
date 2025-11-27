@@ -17,12 +17,14 @@ export async function setupAgentWorkspace(
   const httpsOrigin = `https://github.com/${githubOwner}/${githubRepo}.git`;
   const credentialHelper =
     `!f() { printf "username=%s\\npassword=%s\\n" "$GIT_CREDENTIAL_USERNAME" "$GITHUB_TOKEN"; }; f`;
+  const authorName = shellEscape(agentGitAuthor.name);
+  const authorEmail = shellEscape(agentGitAuthor.email);
   const commands = [
     `rm -rf ${AGENT_WORKDIR}`,
     `mkdir -p ${AGENT_WORKDIR}`,
     `cd ${HOST_REPO_MOUNT} && git clone --shared . ${AGENT_WORKDIR}`,
-    `cd ${AGENT_WORKDIR} && git config --global user.name "${agentGitAuthor.name}"`,
-    `cd ${AGENT_WORKDIR} && git config --global user.email "${agentGitAuthor.email}"`,
+    `cd ${AGENT_WORKDIR} && git config --global user.name ${authorName}`,
+    `cd ${AGENT_WORKDIR} && git config --global user.email ${authorEmail}`,
     `cd ${AGENT_WORKDIR} && git remote set-url origin ${httpsOrigin}`,
     `cd ${AGENT_WORKDIR} && git config credential.helper '${credentialHelper}'`,
     `cd ${AGENT_WORKDIR} && git fetch origin`,
@@ -35,6 +37,10 @@ export async function setupAgentWorkspace(
       throw new Error(`Agent workspace setup failed: ${cmd}${details ? `\n${details}` : ""}`);
     }
   }
+}
+
+function shellEscape(argument: string) {
+  return `'${argument.replaceAll("'", `'\\''`)}'`;
 }
 
 export async function verifyGithubHttps(

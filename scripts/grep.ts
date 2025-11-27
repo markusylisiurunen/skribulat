@@ -8,6 +8,7 @@ import { CliError, printCliError } from "../utils/errors.ts";
 import { resolveRepoRoot } from "../utils/git.ts";
 import { generateCompletion } from "../utils/llm.ts";
 import { type GrepFragmentConfig, loadProjectConfig } from "../utils/project_config.ts";
+import grepSystemPrompt from "../prompts/grep_system.ts";
 
 type ModelAlias = keyof typeof MODEL_ALIASES;
 
@@ -405,12 +406,7 @@ async function collectAttachments(
 }
 
 function buildSystemPrompt(): string {
-  return [
-    "You are a code grep assistant.",
-    "Given files, return only concise findings that address the user's query.",
-    "Answer with bullet points. Each bullet must cite a file path and include a short code excerpt or line reference.",
-    "If nothing relevant is found, reply with 'No matches found.'",
-  ].join(" ");
+  return grepSystemPrompt.trim();
 }
 
 function buildUserPrompt(prompt: string, attachments: Attachment[]): string {

@@ -9,6 +9,7 @@ import { CliError, printCliError } from "../utils/errors.ts";
 import { resolveRepoRoot } from "../utils/git.ts";
 import { generateCompletion } from "../utils/llm.ts";
 import { loadProjectConfig, type OracleFragmentConfig } from "../utils/project_config.ts";
+import oracleSystemPrompt from "../prompts/oracle_system.ts";
 
 type SessionStatus = "pending" | "running" | "completed" | "failed";
 
@@ -526,13 +527,7 @@ async function buildSessionState(
 }
 
 function buildOracleSystemPrompt(): string {
-  return [
-    "You are Oracle, a focused one-shot problem solver. Answer the user's question concisely and directly.",
-    "If information or context is missing, explain what is needed rather than guessing.",
-    "If you need to see more files before answering, request them explicitly.",
-    "Use any attached files as authoritative context. Keep formatting minimal and markdown-friendly.",
-    "Cite files you reference in your answer using their paths.",
-  ].join(" ");
+  return oracleSystemPrompt.trim();
 }
 
 function buildOracleMessages(state: SessionState) {
