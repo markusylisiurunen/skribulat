@@ -21,7 +21,7 @@ import {
   GitHubPullRequestSummary,
   GitHubReviewComment,
 } from "../utils/github.ts";
-import { explainIssueLabels, formatAgentsGuidance } from "../utils/guidance.ts";
+import { explainIssueLabels, formatAgentsGuidance, listAllAgentsFiles } from "../utils/guidance.ts";
 import { runAgentHook } from "../utils/hooks.ts";
 import { SKRIBULAT_PATCHES_SUBDIR, skribulatPath } from "../utils/paths.ts";
 import {
@@ -221,11 +221,16 @@ export async function runWorkOnPr(argv: string[]) {
   const agentsGuidanceBlock = agentsGuidance.trim().length > 0
     ? agentsGuidance
     : "<agents_guidance />";
+  const allAgentsFiles = await listAllAgentsFiles(cfg.repoRoot);
+  const allAgentsFilesBlock = allAgentsFiles.length > 0
+    ? allAgentsFiles.map((path) => `- ${path}`).join("\n")
+    : "None found.";
   const promptTemplate = await loadPrompt("work_on_pr.txt");
   const prompt = renderPrompt(promptTemplate, {
     "{{CURRENT_TIME}}": new Date().toISOString(),
     "{{LABEL_EXPLANATIONS}}": explainIssueLabels(projectConfig.planIssue?.labelExplanations),
     "{{AGENTS_GUIDANCE}}": agentsGuidanceBlock,
+    "{{ALL_AGENTS_FILES}}": allAgentsFilesBlock,
     "{{COMMENT_IDS}}": [...focus.focusIssue, ...focus.focusReview].join(", "),
     "{{PR_BASE_REF}}": pr.baseRef,
     "{{PR_HEAD_REF}}": pr.headRef,

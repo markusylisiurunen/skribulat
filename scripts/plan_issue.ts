@@ -17,6 +17,7 @@ import {
   explainIssueLabels,
   formatAgentsGuidance,
   instructEfficientToolUse,
+  listAllAgentsFiles,
 } from "../utils/guidance.ts";
 import { runAgentHook } from "../utils/hooks.ts";
 import {
@@ -169,6 +170,10 @@ export async function runPlanIssue(argv: string[]) {
       directoryMap: planConfig.agentsDirectoryMap,
     }),
   );
+  const allAgentsFiles = await listAllAgentsFiles(cfg.repoRoot);
+  const allAgentsFilesBlock = allAgentsFiles.length > 0
+    ? allAgentsFiles.map((path) => `- ${path}`).join("\n")
+    : "None found.";
   const systemInstructions = await loadPrompt("plan_issue_system.txt");
   const promptTemplate = await loadPrompt("plan_issue_user.txt");
   const issueLabels = issue.labels.length > 0 ? issue.labels.join(", ") : "No labels.";
@@ -190,6 +195,7 @@ export async function runPlanIssue(argv: string[]) {
     "{{ISSUE_COMMENTS}}": commentsBlock.length > 0
       ? commentsBlock
       : "<comments>No comments.</comments>",
+    "{{ALL_AGENTS_FILES}}": allAgentsFilesBlock,
   });
   const fullPrompt = composePrompt(systemInstructions, userPrompt);
   const plan = await generatePlanViaAgent(fullPrompt, planConfig, agentConfig, cfg, codexAuthPath);

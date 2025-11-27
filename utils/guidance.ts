@@ -2,6 +2,7 @@ import { walk } from "@std/fs/walk";
 import { join, relative } from "@std/path";
 import labelGuidancePrompt from "../prompts/label_guidance.ts";
 import toolUseGuidancePrompt from "../prompts/tool_use_guidance.ts";
+import { runCommand } from "./process.ts";
 
 const AGENTS_FILE_NAME = "AGENTS.md";
 
@@ -48,6 +49,18 @@ export type AgentsDirectoryMap = Record<string, string[]>;
 export type AgentsGuidanceConfig = {
   directoryMap?: AgentsDirectoryMap;
 };
+
+export async function listAllAgentsFiles(repoRoot: string): Promise<string[]> {
+  const command = "rg --files | rg 'AGENTS\\.md$' | sort";
+  const { stdout } = await runCommand("sh", ["-c", command], {
+    allowFailure: true,
+    cwd: repoRoot,
+  });
+  return stdout
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+}
 
 export async function formatAgentsGuidance(
   { labels, repoRoot }: AgentsGuidanceOptions,

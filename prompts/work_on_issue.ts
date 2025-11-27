@@ -39,6 +39,9 @@ Constraints:
 Relevant AGENTS.md guidance, for your convenience to not have to look it up:
 {{AGENTS_GUIDANCE}}
 
+All AGENTS.md files in the repository (via \`rg --files | grep 'AGENTS\\.md$' | sort\`):
+{{ALL_AGENTS_FILES}}
+
 {{LABEL_EXPLANATIONS}}
 
 Issue metadata:

@@ -108,7 +108,7 @@ function buildCodexCommand(config: AgentToolConfig, promptPath: string): string 
     `-c shell_environment_policy.ignore_default_excludes=true`,
     `-c shell_environment_policy.inherit=\"all\"`,
     `-c project_doc_max_bytes=131072`,
-    `-c tool_output_token_limit=8192`,
+    `-c tool_output_token_limit=16384`,
     `-c model_reasoning_effort=\"${reasoningEffort}\"`,
     `-c model_reasoning_summary=\"detailed\"`,
     `-c model_verbosity=\"high\"`,

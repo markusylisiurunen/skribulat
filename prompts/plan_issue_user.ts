@@ -19,6 +19,9 @@ Steps to follow:
 Relevant AGENTS.md guidance for quick reference:
 {{AGENTS_GUIDANCE}}
 
+All AGENTS.md files in the repository (via \`rg --files | grep 'AGENTS\\.md$' | sort\`):
+{{ALL_AGENTS_FILES}}
+
 Output instructions:
 - Respond with a Markdown document detailed enough for a developer unfamiliar with the issue to follow.
 - Structure the document exactly as follows:

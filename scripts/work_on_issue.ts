@@ -19,6 +19,7 @@ import {
   explainIssueLabels,
   formatAgentsGuidance,
   instructEfficientToolUse,
+  listAllAgentsFiles,
 } from "../utils/guidance.ts";
 import { runAgentHook } from "../utils/hooks.ts";
 import { generateCompletion } from "../utils/llm.ts";
@@ -272,6 +273,10 @@ export async function runWorkOnIssue(argv: string[]) {
   const agentsGuidanceBlock = agentsGuidance.trim().length > 0
     ? agentsGuidance
     : "<agents_guidance />";
+  const allAgentsFiles = await listAllAgentsFiles(cfg.repoRoot);
+  const allAgentsFilesBlock = allAgentsFiles.length > 0
+    ? allAgentsFiles.map((path) => `- ${path}`).join("\n")
+    : "None found.";
   const issueCommentsBlock = buildIssueCommentsBlock(comments);
   const promptTemplate = await loadPrompt("work_on_issue.txt");
   const prompt = renderPrompt(promptTemplate, {
@@ -279,6 +284,7 @@ export async function runWorkOnIssue(argv: string[]) {
     "{{BRANCH_NAME}}": branchName,
     "{{ISSUE_NUMBER}}": issue.number.toString(),
     "{{AGENTS_GUIDANCE}}": agentsGuidanceBlock,
+    "{{ALL_AGENTS_FILES}}": allAgentsFilesBlock,
     "{{LABEL_EXPLANATIONS}}": explainIssueLabels(projectConfig.planIssue?.labelExplanations),
     "{{ISSUE_CREATED}}": issue.createdAt,
     "{{ISSUE_UPDATED}}": issue.updatedAt,
