@@ -175,7 +175,31 @@ CLI overrides sit on top of the YAML. Examples:
 
 Hooks and agent artifacts live under `.skribulat/`:
 
-- `.skribulat/hooks/<hook>.sh` – optional pre/post hooks invoked during agent runs.
+- `.skribulat/hooks/pre-work.sh` – setup inside the container before any agent work; aborts the run
+  on failure. Example: install toolchain and print instructions.
+  ```bash
+  #!/usr/bin/env bash
+  set -euo pipefail
+  apt-get update && apt-get install -y shellcheck
+  echo "Run lint with: deno lint"
+  ```
+- `.skribulat/hooks/post-work.sh` – verification before push/PR; aborts on failure. Example: run
+  tests and format check.
+  ```bash
+  #!/usr/bin/env bash
+  set -euo pipefail
+  deno fmt --check
+  deno test
+  ```
+- `.skribulat/hooks/on-failure.sh` – best-effort recovery/logging when the run errors. Example: send
+  a webhook and collect logs.
+  ```bash
+  #!/usr/bin/env bash
+  set -euo pipefail
+  curl -X POST -H "Content-Type: application/json" \
+    -d '{"text":"Skribulat run failed"}' "$SLACK_WEBHOOK_URL" || true
+  tar czf /root/agent/.skribulat/patches/latest-logs.tgz /root/agent/.git/logs || true
+  ```
 - `.skribulat/patches/` – git diff snapshots captured after agent activity.
 
 ### Environment variables

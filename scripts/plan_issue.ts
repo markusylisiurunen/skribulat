@@ -121,6 +121,14 @@ async function generatePlanViaAgent(
       throw new Error("Agent returned an empty plan.");
     }
     return plan.trim();
+  } catch (error) {
+    try {
+      await runAgentHook(runner, "on-failure");
+    } catch (hookError) {
+      const message = hookError instanceof Error ? hookError.message : String(hookError);
+      console.warn(`on-failure hook failed: ${message}`);
+    }
+    throw error;
   } finally {
     await runner.remove();
   }

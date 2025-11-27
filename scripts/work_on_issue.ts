@@ -341,6 +341,7 @@ export async function runWorkOnIssue(argv: string[]) {
       workingDir: AGENT_WORKDIR,
     }, agentConfig);
     agentRan = true;
+    await runAgentHook(runner, "post-work");
     const pushResult = await runner.runBashCommand(`git push -u origin ${branchName}`, {
       cwd: AGENT_WORKDIR,
     });
@@ -364,6 +365,14 @@ export async function runWorkOnIssue(argv: string[]) {
       body: prBody,
     });
     console.log(`Pull request created: ${pr.url}`);
+  } catch (error) {
+    try {
+      await runAgentHook(runner, "on-failure");
+    } catch (hookError) {
+      const message = hookError instanceof Error ? hookError.message : String(hookError);
+      console.warn(`on-failure hook failed: ${message}`);
+    }
+    throw error;
   } finally {
     if (stopCheckpoint) {
       await stopCheckpoint();

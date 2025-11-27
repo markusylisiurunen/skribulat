@@ -298,6 +298,7 @@ export async function runWorkOnPr(argv: string[]) {
       workingDir: AGENT_WORKDIR,
     }, agentConfig);
     agentRan = true;
+    await runAgentHook(runner, "post-work");
     const pushResult = await runner.runBashCommand(`git push -u origin ${pr.headRef}`, {
       cwd: AGENT_WORKDIR,
     });
@@ -305,6 +306,14 @@ export async function runWorkOnPr(argv: string[]) {
       console.warn("Failed to push branch:\n", pushResult.stdout, pushResult.stderr);
       Deno.exit(1);
     }
+  } catch (error) {
+    try {
+      await runAgentHook(runner, "on-failure");
+    } catch (hookError) {
+      const message = hookError instanceof Error ? hookError.message : String(hookError);
+      console.warn(`on-failure hook failed: ${message}`);
+    }
+    throw error;
   } finally {
     if (stopCheckpoint) {
       await stopCheckpoint();

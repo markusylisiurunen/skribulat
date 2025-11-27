@@ -10,11 +10,12 @@ export async function runAgentHook(
   { cwd = "/root/agent" }: { cwd?: string } = {},
 ) {
   const hookPath = join(SKRIBULAT_DIRNAME, SKRIBULAT_HOOKS_SUBDIR, `${hookName}.sh`);
-  console.log(`Running hook: ${hookPath}`);
+  const posixHookPath = hookPath.replaceAll("\\", "/");
+  console.log(`Running hook: ${posixHookPath}`);
   const script = [
-    `if [ -f "${hookPath}" ]; then`,
-    `  chmod +x "${hookPath}"`,
-    `  "${hookPath}"`,
+    `if [ -f "${posixHookPath}" ]; then`,
+    `  chmod +x "${posixHookPath}"`,
+    `  "${posixHookPath}"`,
     "else",
     "  :",
     "fi",
