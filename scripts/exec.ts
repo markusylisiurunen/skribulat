@@ -1,7 +1,7 @@
 import { join } from "@std/path";
 import { loadEnv } from "../utils/env.ts";
 import { CliError, printCliError } from "../utils/errors.ts";
-import { generateCompletion } from "../utils/llm.ts";
+import { generateCompletion, unwrapJsonFence } from "../utils/llm.ts";
 import { loadPrompt, renderPrompt } from "../utils/prompts.ts";
 
 const ALLOWED_MODELS = [
@@ -90,7 +90,7 @@ async function extractCommandResponse(instruction: string, model: AllowedModel) 
 function extractCommand(response: string) {
   let parsed: unknown;
   try {
-    parsed = JSON.parse(response.trim());
+    parsed = JSON.parse(unwrapJsonFence(response));
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(`LLM response is not valid JSON: ${message}`);

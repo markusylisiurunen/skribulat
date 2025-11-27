@@ -2,7 +2,7 @@ import { config } from "../utils/config.ts";
 import { loadEnv } from "../utils/env.ts";
 import { printCliError } from "../utils/errors.ts";
 import { runGit } from "../utils/git.ts";
-import { generateCompletion } from "../utils/llm.ts";
+import { generateCompletion, unwrapJsonFence } from "../utils/llm.ts";
 import { loadPrompt, renderPrompt } from "../utils/prompts.ts";
 
 const GENERATION_MODEL = "google/gemini-2.5-flash-preview-09-2025";
@@ -53,7 +53,7 @@ async function collectDiffs(repoPath: string): Promise<CollectedDiffs> {
 }
 
 function parseSubjectsFromJson(completion: string): string[] {
-  const jsonText = completion.trim();
+  const jsonText = unwrapJsonFence(completion);
   let parsed: unknown;
   try {
     parsed = JSON.parse(jsonText);

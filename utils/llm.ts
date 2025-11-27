@@ -14,6 +14,14 @@ type GenerateCompletionArgs = {
   responseFormat?: { type: string };
 };
 
+export function unwrapJsonFence(text: string) {
+  const trimmed = text.trim();
+  if (trimmed.startsWith("{")) return trimmed;
+  if (trimmed.startsWith("[")) return trimmed;
+  const match = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  return match ? match[1].trim() : trimmed;
+}
+
 export async function generateCompletion(args: GenerateCompletionArgs) {
   const apiKey = Deno.env.get("OPENROUTER_API_KEY");
   if (!apiKey) {

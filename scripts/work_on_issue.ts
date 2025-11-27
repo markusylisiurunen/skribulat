@@ -24,7 +24,7 @@ import { runAgentHook } from "../utils/hooks.ts";
 import { IssueComment, IssueSummary } from "../utils/issue_provider.ts";
 import { createIssueProvider } from "../utils/issues.ts";
 import { createGitHubIssueProvider } from "../utils/github.ts";
-import { generateCompletion } from "../utils/llm.ts";
+import { generateCompletion, unwrapJsonFence } from "../utils/llm.ts";
 import { SKRIBULAT_PATCHES_SUBDIR, skribulatPath } from "../utils/paths.ts";
 import {
   AgentCliOverrides,
@@ -114,7 +114,7 @@ async function generateBranchName(
 function parseBranchName(response: string) {
   let parsed: unknown;
   try {
-    parsed = JSON.parse(response.trim());
+    parsed = JSON.parse(unwrapJsonFence(response));
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(`LLM response is not valid JSON: ${message}`);
