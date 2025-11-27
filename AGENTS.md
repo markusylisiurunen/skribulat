@@ -68,6 +68,9 @@ All scripts live under the `scripts` folder (e.g., `scripts/commit.ts`).
   flow from `work_on_issue.ts`. Supports `--issue <number>` or interactive selection, optional
   `--agent`/`--model` overrides for the work step, and `--codex-auth <path>` which is forwarded to
   both plan and work phases.
+- `prompt.ts`: Prints a stored prompt template from `prompts/templates/`. Invoke as
+  `skribulat prompt <name>` (e.g., `skribulat prompt rewrite-prompt`). Front matter is stripped
+  before output.
 - `review.ts`: Generates an optimized code review prompt by consuming a git diff from stdin. Parses
   the diff to identify modified files and includes their full content along with the diff itself in
   the prompt. Supports `-i`/`--include <regex>` to force-add files, `-e`/`--exclude <regex>` to drop
@@ -162,10 +165,12 @@ All utility files live under the `utils` folder.
 
 ## Prompt templates
 
-The `prompts/` folder contains LLM prompt templates embedded into the compiled binary. Templates use
-`{{VARIABLE}}` placeholder syntax and are loaded via `utils/prompts.ts`. Most commands use paired
-system/user prompts (e.g., `commit_subject_system.ts` + `commit_subject_user.ts`). The
-`templates.ts` file exports all prompts as a centralized map for compilation.
+Two template sets exist:
+
+- Embedded prompts under `prompts/*.ts` loaded via `utils/prompts.ts` (paired system/user files).
+- Markdown prompts under `prompts/templates/*.md`, loadable with `skribulat prompt <name>`; front
+  matter is stripped before printing. `prompts/templates/index.ts` exposes `listTemplates` and
+  `loadTemplate`.
 
 ## How to work
 

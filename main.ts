@@ -7,6 +7,7 @@ import { runPlanAndWorkOnIssue } from "./scripts/plan_and_work_on_issue.ts";
 import { runReview } from "./scripts/review.ts";
 import { runOracle } from "./scripts/oracle.ts";
 import { runGrep } from "./scripts/grep.ts";
+import { runPrompt } from "./scripts/prompt.ts";
 import { runWorkOnIssue } from "./scripts/work_on_issue.ts";
 import { runWorkOnPr } from "./scripts/work_on_pr.ts";
 import { CliError, printCliError } from "./utils/errors.ts";
@@ -23,6 +24,7 @@ const COMMANDS: Record<string, CommandHandler> = {
   "review": runReview,
   "oracle": runOracle,
   "grep": runGrep,
+  "prompt": runPrompt,
   "work-on-issue": runWorkOnIssue,
   "work-on-pr": runWorkOnPr,
 };
@@ -39,6 +41,7 @@ function printUsage() {
       `  plan-and-work-on-issue  Run planning and implementation for an issue sequentially.\n` +
       `  oracle                  Ask questions, optionally detached, with file attachments.\n` +
       `  grep                    Run a concise, fragment-aware code grep via the model.\n` +
+      `  prompt                  Print a stored prompt template by name.\n` +
       `  review                  Generate a code review prompt from a git diff.\n` +
       `  work-on-issue           Spin up an agent to implement an issue branch and PR.\n` +
       `  work-on-pr              Address feedback on an existing pull request via agent.\n` +
