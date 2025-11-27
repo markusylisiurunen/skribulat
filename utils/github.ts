@@ -1,10 +1,21 @@
 import { Octokit } from "octokit";
+import {
+  CreatePullRequestInput,
+  CreatePullRequestResult,
+  Issue,
+  IssueComment,
+  IssueProvider,
+  IssueSummary,
+} from "./issue_provider.ts";
 
 export type GitHubIssueSummary = {
   id: string;
   number: number;
   title: string;
+  labels: string[];
+  createdAt: string;
   updatedAt: string;
+  url: string;
 };
 
 export type GitHubIssueComment = {
@@ -13,6 +24,7 @@ export type GitHubIssueComment = {
   createdAt: string;
   databaseId: number;
   id: string;
+  url?: string;
 };
 
 export type GitHubIssue = {
@@ -22,6 +34,7 @@ export type GitHubIssue = {
   labels: string[];
   number: number;
   title: string;
+  closedAt?: string | null;
   updatedAt: string;
   url: string;
 };
@@ -89,7 +102,10 @@ type ListIssuesQueryResult = {
         id: string;
         number: number;
         title: string;
+        url: string;
+        createdAt: string;
         updatedAt: string;
+        labels: { nodes: Array<{ name: string | null }> };
       }>;
     };
   } | null;
@@ -108,6 +124,7 @@ type IssueWithCommentsQueryResult = {
           };
           number: number;
           title: string;
+          closedAt: string | null;
           updatedAt: string;
           url: string;
         }
@@ -119,6 +136,7 @@ type IssueWithCommentsQueryResult = {
               createdAt: string;
               databaseId: number;
               id: string;
+              url?: string;
             }>;
             pageInfo: { endCursor: string | null; hasNextPage: boolean };
           };
@@ -199,7 +217,14 @@ export class GitHubClient {
               id
               number
               title
+              url
+              createdAt
               updatedAt
+              labels(first: 20) {
+                nodes {
+                  name
+                }
+              }
             }
           }
         }
@@ -211,7 +236,12 @@ export class GitHubClient {
       id: node.id,
       number: node.number,
       title: node.title,
+      url: node.url,
+      createdAt: node.createdAt,
       updatedAt: node.updatedAt,
+      labels: node.labels.nodes
+        .map((label) => label?.name)
+        .filter((name): name is string => Boolean(name)),
     }));
   }
 
@@ -241,6 +271,7 @@ export class GitHubClient {
               url
               createdAt
               updatedAt
+              closedAt
               labels(first: 50) {
                 nodes {
                   name
@@ -252,6 +283,7 @@ export class GitHubClient {
                   databaseId
                   body
                   createdAt
+                  url
                   author {
                     login
                   }
@@ -282,6 +314,7 @@ export class GitHubClient {
           title: issueNode.title,
           updatedAt: issueNode.updatedAt,
           url: issueNode.url,
+          closedAt: issueNode.closedAt,
         };
       }
       for (const node of issueNode.comments.nodes) {
@@ -291,6 +324,7 @@ export class GitHubClient {
           createdAt: node.createdAt,
           databaseId: node.databaseId,
           id: node.id,
+          url: node.url,
         });
       }
       hasNextPage = issueNode.comments.pageInfo.hasNextPage;
@@ -512,4 +546,81 @@ export function createGitHubClient(token: string): GitHubClient {
     throw new Error("GitHub token is required to create a client.");
   }
   return new GitHubClient(token);
+}
+
+export class GitHubIssueProvider implements IssueProvider {
+  readonly kind = "github" as const;
+  #client: GitHubClient;
+  #owner: string;
+  #repo: string;
+
+  constructor(options: { token: string; owner: string; repo: string }) {
+    this.#client = createGitHubClient(options.token);
+    this.#owner = options.owner;
+    this.#repo = options.repo;
+  }
+
+  async listOpenIssues(): Promise<IssueSummary[]> {
+    const issues = await this.#client.listOpenIssues(this.#owner, this.#repo);
+    return issues.map((issue) => ({
+      id: issue.number.toString(),
+      number: issue.number,
+      title: issue.title,
+      labels: issue.labels,
+      createdAt: issue.createdAt,
+      updatedAt: issue.updatedAt,
+      url: issue.url,
+      status: "open",
+    }));
+  }
+
+  async fetchIssueWithComments(id: string): Promise<{ issue: Issue; comments: IssueComment[] }> {
+    const number = Number(id);
+    if (!Number.isFinite(number)) {
+      throw new Error(`GitHub issues must be referenced by numeric id; received: ${id}`);
+    }
+    const { issue, comments } = await this.#client.fetchIssueWithComments(
+      this.#owner,
+      this.#repo,
+      number,
+    );
+    const mappedComments: IssueComment[] = comments.map((comment) => ({
+      id: comment.databaseId?.toString() ?? comment.id,
+      author: comment.author,
+      body: comment.body ?? "No content.",
+      createdAt: comment.createdAt,
+      url: comment.url,
+    }));
+    const mappedIssue: Issue = {
+      id: issue.number.toString(),
+      number: issue.number,
+      title: issue.title,
+      body: issue.body ?? "No description.",
+      labels: issue.labels,
+      createdAt: issue.createdAt,
+      updatedAt: issue.updatedAt,
+      url: issue.url,
+      status: issue.closedAt ? "closed" : "open",
+    };
+    return { issue: mappedIssue, comments: mappedComments };
+  }
+
+  async addComment(issueId: string, body: string): Promise<void> {
+    await this.#client.addIssueComment(issueId, body);
+  }
+
+  async createPullRequest(
+    input: CreatePullRequestInput,
+  ): Promise<CreatePullRequestResult | null> {
+    const pr = await this.#client.createPullRequest(this.#owner, this.#repo, input);
+    return { url: pr.url };
+  }
+}
+
+export function createGitHubIssueProvider(
+  token: string,
+  owner: string,
+  repo: string,
+): IssueProvider {
+  return new GitHubIssueProvider({ token, owner, repo });
 }

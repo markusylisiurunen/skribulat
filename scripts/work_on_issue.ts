@@ -1,5 +1,7 @@
 import { select } from "@inquirer/prompts";
 import { join } from "@std/path";
+import branchNameSystemPrompt from "../prompts/branch_name_system.ts";
+import prBodySystemPrompt from "../prompts/pr_body_system.ts";
 import { buildRunnerEnv } from "../utils/agent_env.ts";
 import { preserveGitPatch, startPatchCheckpoint } from "../utils/agent_patch.ts";
 import { runAgent } from "../utils/agent_runner.ts";
@@ -13,8 +15,7 @@ import { config } from "../utils/config.ts";
 import { DockerRunner } from "../utils/docker.ts";
 import { loadEnv } from "../utils/env.ts";
 import { CliError, printCliError } from "../utils/errors.ts";
-import { readFlag, readPositiveIntegerFlag } from "../utils/flags.ts";
-import { createGitHubClient, GitHubIssueComment, GitHubIssueSummary } from "../utils/github.ts";
+import { readFlag } from "../utils/flags.ts";
 import {
   explainIssueLabels,
   formatAgentsGuidance,
@@ -22,6 +23,9 @@ import {
   listAllAgentsFiles,
 } from "../utils/guidance.ts";
 import { runAgentHook } from "../utils/hooks.ts";
+import { IssueComment, IssueSummary } from "../utils/issue_provider.ts";
+import { createIssueProvider } from "../utils/issues.ts";
+import { createGitHubIssueProvider } from "../utils/github.ts";
 import { generateCompletion } from "../utils/llm.ts";
 import { SKRIBULAT_PATCHES_SUBDIR, skribulatPath } from "../utils/paths.ts";
 import {
@@ -31,8 +35,6 @@ import {
 } from "../utils/project_config.ts";
 import { loadPrompt, renderPrompt } from "../utils/prompts.ts";
 import { fitInConsoleWidth } from "../utils/text.ts";
-import branchNameSystemPrompt from "../prompts/branch_name_system.ts";
-import prBodySystemPrompt from "../prompts/pr_body_system.ts";
 
 const BRANCH_MODEL = "google/gemini-2.5-flash-preview-09-2025";
 const PR_BODY_MODEL = "google/gemini-2.5-flash-preview-09-2025";
@@ -43,13 +45,13 @@ function usage() {
       "Options:\n" +
       "  --issue <number>     Start working on a specific issue\n" +
       "  --agent <tool>       Agent tool to use (codex, claude-code, shell)\n" +
-      "  --model <name>       Model name (e.g., gpt-5.1-codex-max, sonnet, haiku)\n" +
+      "  --model <name>       Model name (e.g., gpt-5.1-codex-max, haiku, sonnet, opus)\n" +
       "  --codex-auth <path>  Copy Codex auth.json into the agent container before running\n" +
       "  -h, --help           Show this help message",
   );
 }
 
-async function chooseIssue(issueSummaries: GitHubIssueSummary[]) {
+async function chooseIssue(issueSummaries: IssueSummary[]) {
   if (issueSummaries.length === 0) {
     console.log("No open issues found.");
     Deno.exit(0);
@@ -58,11 +60,11 @@ async function chooseIssue(issueSummaries: GitHubIssueSummary[]) {
     const value = await select({
       message: "Select an issue:",
       choices: issueSummaries.map((issue) => ({
-        name: fitInConsoleWidth(`#${issue.number} ${issue.title}`, 2),
-        value: issue.number,
+        name: fitInConsoleWidth(`#${issue.id} ${issue.title}`, 2),
+        value: issue.id,
       })),
     });
-    return value as number;
+    return value as string;
   } catch {
     console.log("No issue selected.");
     Deno.exit(0);
@@ -72,7 +74,7 @@ async function chooseIssue(issueSummaries: GitHubIssueSummary[]) {
 async function generateBranchName(
   issueTitle: string,
   issueBody: string,
-  comments: GitHubIssueComment[],
+  comments: IssueComment[],
   labels: string[],
 ) {
   const systemInstructions = branchNameSystemPrompt;
@@ -90,7 +92,7 @@ Issue metadata:
   `.trim();
   const commentsBlock = comments.map((comment) => {
     const body = comment.body?.trim() ?? "No content.";
-    return `<comment id="${comment.databaseId}" time="${comment.createdAt}" user="${comment.author}">\n${body}\n</comment>`;
+    return `<comment id="${comment.id}" time="${comment.createdAt}" user="${comment.author}">\n${body}\n</comment>`;
   }).join("\n");
   const prompt = renderPrompt(template, {
     "{{labels}}": labels.length > 0 ? labels.join(", ") : "No labels.",
@@ -121,12 +123,12 @@ Issue metadata:
   return sanitized;
 }
 
-function buildIssueCommentsBlock(comments: GitHubIssueComment[]) {
+function buildIssueCommentsBlock(comments: IssueComment[]) {
   if (comments.length === 0) return "<comments>No comments.</comments>";
   return comments
     .map((comment) => {
       const body = comment.body?.trim() ?? "No content.";
-      return `<comment id="${comment.databaseId}" time="${comment.createdAt}" user="${comment.author}">\n${body}\n</comment>`;
+      return `<comment id="${comment.id}" time="${comment.createdAt}" user="${comment.author}">\n${body}\n</comment>`;
     })
     .join("\n");
 }
@@ -180,11 +182,11 @@ async function collectDiffForPrompt(runner: DockerRunner, diffRange: string) {
 }
 
 async function generatePullRequestBody(
-  issueNumber: number,
+  issueRef: string,
   issueTitle: string,
   issueBody: string,
   labels: string[],
-  comments: GitHubIssueComment[],
+  comments: IssueComment[],
   diff: string,
 ) {
   const labelsText = labels.length > 0 ? labels.join(", ") : "No labels.";
@@ -195,9 +197,9 @@ async function generatePullRequestBody(
     }).join("\n")
     : "No discussion comments.";
   const diffForPrompt = diff.trim().length > 0 ? diff.trim() : "No diff detected.";
-  const systemInstructions = prBodySystemPrompt.replaceAll("{{ISSUE_NUMBER}}", `${issueNumber}`);
+  const systemInstructions = prBodySystemPrompt.replaceAll("{{ISSUE_NUMBER}}", `${issueRef}`);
   const prompt = `
-Issue number: #${issueNumber}
+Issue number: #${issueRef}
 Title: ${issueTitle}
 Labels: ${labelsText}
 
@@ -222,19 +224,19 @@ Your full response will be used as-is for the PR body.
     systemInstructions,
     temperature: 0.2,
   });
-  return body.trim().length > 0 ? body.trim() : `Fixes #${issueNumber}`;
+  return body.trim().length > 0 ? body.trim() : `Fixes #${issueRef}`;
 }
 
 export async function runWorkOnIssue(argv: string[]) {
   await loadEnv();
   const cfg = config();
   let restArgs = argv;
-  let issueNumberArg: number | undefined;
+  let issueIdArg: string | undefined;
   let agentArg: AgentCliOverrides["tool"];
   let modelArg: AgentCliOverrides["model"];
   let codexAuthPath: string | undefined;
   try {
-    ({ rest: restArgs, value: issueNumberArg } = readPositiveIntegerFlag(restArgs, "--issue"));
+    ({ rest: restArgs, value: issueIdArg } = readFlag(restArgs, "--issue"));
     ({ rest: restArgs, value: agentArg } = readFlag(restArgs, "--agent"));
     ({ rest: restArgs, value: modelArg } = readFlag(restArgs, "--model"));
     ({ rest: restArgs, value: codexAuthPath } = readFlag(restArgs, "--codex-auth"));
@@ -249,16 +251,12 @@ export async function runWorkOnIssue(argv: string[]) {
   if (!cfg.githubToken) {
     throw new CliError("GITHUB_TOKEN is not set. Provide a GitHub token in the environment.");
   }
-  const github = createGitHubClient(cfg.githubToken);
   const projectConfig = loadProjectConfig();
-  const issueNumber = issueNumberArg ?? await chooseIssue(
-    await github.listOpenIssues(cfg.githubOwner, cfg.githubRepo),
+  const issueProvider = createIssueProvider(projectConfig);
+  const issueId = issueIdArg ?? await chooseIssue(
+    await issueProvider.listOpenIssues(),
   );
-  const { issue, comments } = await github.fetchIssueWithComments(
-    cfg.githubOwner,
-    cfg.githubRepo,
-    issueNumber,
-  );
+  const { issue, comments } = await issueProvider.fetchIssueWithComments(issueId);
   const branchName = await generateBranchName(
     issue.title,
     issue.body,
@@ -282,12 +280,12 @@ export async function runWorkOnIssue(argv: string[]) {
   const prompt = renderPrompt(promptTemplate, {
     "{{CURRENT_TIME}}": new Date().toISOString(),
     "{{BRANCH_NAME}}": branchName,
-    "{{ISSUE_NUMBER}}": issue.number.toString(),
+    "{{ISSUE_NUMBER}}": issue.number?.toString() ?? issue.id,
     "{{AGENTS_GUIDANCE}}": agentsGuidanceBlock,
     "{{ALL_AGENTS_FILES}}": allAgentsFilesBlock,
     "{{LABEL_EXPLANATIONS}}": explainIssueLabels(projectConfig.planIssue?.labelExplanations),
-    "{{ISSUE_CREATED}}": issue.createdAt,
-    "{{ISSUE_UPDATED}}": issue.updatedAt,
+    "{{ISSUE_CREATED}}": issue.createdAt ?? "",
+    "{{ISSUE_UPDATED}}": issue.updatedAt ?? "",
     "{{ISSUE_LABELS}}": issue.labels.length > 0 ? issue.labels.join(", ") : "No labels.",
     "{{ISSUE_TITLE}}": issue.title,
     "{{ISSUE_BODY}}": issue.body.trim().length > 0 ? issue.body.trim() : "No description.",
@@ -350,20 +348,30 @@ export async function runWorkOnIssue(argv: string[]) {
       Deno.exit(1);
     }
     const diff = await collectDiffForPrompt(runner, diffRange);
+    const issueRef = issue.number?.toString() ?? issue.id;
     const prBody = await generatePullRequestBody(
-      issue.number,
+      issueRef,
       issue.title,
       issue.body.trim().length > 0 ? issue.body.trim() : "No description.",
       issue.labels,
       comments,
       diff,
     );
-    const pr = await github.createPullRequest(cfg.githubOwner, cfg.githubRepo, {
+    const prProvider = issueProvider.createPullRequest
+      ? issueProvider
+      : createGitHubIssueProvider(cfg.githubToken, cfg.githubOwner, cfg.githubRepo);
+    if (!prProvider.createPullRequest) {
+      throw new Error("Pull request creation is unavailable; ensure GitHub credentials are set.");
+    }
+    const pr = await prProvider.createPullRequest({
       base: cfg.githubDefaultBranch,
       head: branchName,
       title: issue.title,
       body: prBody,
     });
+    if (!pr) {
+      throw new Error("Pull request creation failed: provider returned null.");
+    }
     console.log(`Pull request created: ${pr.url}`);
   } catch (error) {
     try {

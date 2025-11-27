@@ -49,8 +49,14 @@ export type OracleConfig = {
   defaultModel?: string;
 };
 
+export type IssuesConfig = {
+  backend?: "github" | "fs";
+  path?: string;
+};
+
 export type ProjectConfig = {
   agent?: AgentToolConfig;
+  issues?: IssuesConfig;
   planIssue?: PlanIssueConfig;
   grep?: GrepConfig;
   oracle?: OracleConfig;
@@ -83,6 +89,10 @@ function parseYaml(contents: string): ProjectConfig {
   const planIssue = planIssueRaw && typeof planIssueRaw === "object"
     ? normalizePlanIssueConfig(planIssueRaw as Record<string, unknown>)
     : undefined;
+  const issuesRaw = root["issues"];
+  const issues = issuesRaw && typeof issuesRaw === "object"
+    ? normalizeIssuesConfig(issuesRaw as Record<string, unknown>)
+    : undefined;
   const grepRaw = root["grep"];
   const grep = grepRaw && typeof grepRaw === "object"
     ? normalizeGrepConfig(grepRaw as Record<string, unknown>)
@@ -101,6 +111,7 @@ function parseYaml(contents: string): ProjectConfig {
     : undefined;
   return {
     agent,
+    issues,
     planIssue,
     grep,
     oracle,
@@ -143,6 +154,22 @@ function normalizePlanIssueConfig(raw: Record<string, unknown>): PlanIssueConfig
   const agentRaw = raw["agent"];
   if (agentRaw && typeof agentRaw === "object") {
     config.agent = normalizeAgentConfig(agentRaw as Record<string, unknown>);
+  }
+  return config;
+}
+
+function normalizeIssuesConfig(raw: Record<string, unknown>): IssuesConfig {
+  const config: IssuesConfig = {};
+  const backendRaw = raw["backend"];
+  if (typeof backendRaw === "string") {
+    const normalized = backendRaw.trim().toLowerCase();
+    if (normalized === "github" || normalized === "fs") {
+      config.backend = normalized;
+    }
+  }
+  const pathRaw = raw["path"];
+  if (typeof pathRaw === "string" && pathRaw.trim().length > 0) {
+    config.path = pathRaw.trim();
   }
   return config;
 }

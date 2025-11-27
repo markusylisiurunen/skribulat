@@ -65,6 +65,7 @@ const COPY_NEWLINE = "\n";
 const MODEL_ALIASES = {
   "gemini-3-pro": "google/gemini-3-pro-preview",
   "gemini-2.5-flash": "google/gemini-2.5-flash-preview-09-2025",
+  "claude-opus-4.5": "anthropic/claude-opus-4.5",
   "gpt-5.1": "openai/gpt-5.1",
   "gpt-5.1-pro": "openai/gpt-5.1-pro",
 } as const;
@@ -87,6 +88,7 @@ const MODEL_CONFIG: Record<
 > = {
   "gemini-3-pro": { maxTokens: 32_768, reasoningEffort: "high" },
   "gemini-2.5-flash": { maxTokens: 32_768, reasoningEffort: "medium" },
+  "claude-opus-4.5": { maxTokens: 32_768, reasoningEffort: "high" },
   "gpt-5.1": { maxTokens: 32_768, reasoningEffort: "high" },
   "gpt-5.1-pro": { maxTokens: 32_768, reasoningEffort: "high" },
 };
@@ -122,7 +124,7 @@ function usage(defaultModel: ModelAlias) {
       "      --copy <uuid>        Print a single assistant response for piping (e.g., to pbcopy)",
       "  -r, --response <n>       Response index to copy (1-based within assistant replies; defaults to last)",
       "  -t, --timeout <seconds>  Maximum seconds to wait with -w (default 30)",
-      `  -m, --model <name>       Model alias: gemini-3-pro | gemini-2.5-flash | gpt-5.1 | gpt-5.1-pro (default ${defaultModel})`,
+      `  -m, --model <name>       Model alias: gemini-3-pro | gemini-2.5-flash | claude-opus-4.5 | gpt-5.1 | gpt-5.1-pro (default ${defaultModel})`,
       "      --dry-run            Show what would be sent without calling the model",
       "  -h, --help               Show this help message",
     ].join("\n"),
@@ -335,7 +337,7 @@ function parseArgs(argv: readonly string[], defaultModel: ModelAlias): ParsedArg
       if (!value) throw new CliError(`${arg} flag requires a value.`);
       if (!(value in MODEL_ALIASES)) {
         throw new CliError(
-          "Invalid model alias. Allowed: gemini-3-pro, gemini-2.5-flash, gpt-5.1, gpt-5.1-pro.",
+          "Invalid model alias. Allowed: gemini-3-pro, gemini-2.5-flash, claude-opus-4.5, gpt-5.1, gpt-5.1-pro.",
         );
       }
       model = value as ModelAlias;
@@ -347,7 +349,7 @@ function parseArgs(argv: readonly string[], defaultModel: ModelAlias): ParsedArg
       if (!value) throw new CliError("--model flag requires a value.");
       if (!(value in MODEL_ALIASES)) {
         throw new CliError(
-          "Invalid model alias. Allowed: gemini-3-pro, gemini-2.5-flash, gpt-5.1, gpt-5.1-pro.",
+          "Invalid model alias. Allowed: gemini-3-pro, gemini-2.5-flash, claude-opus-4.5, gpt-5.1, gpt-5.1-pro.",
         );
       }
       model = value as ModelAlias;

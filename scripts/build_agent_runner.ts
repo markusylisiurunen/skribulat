@@ -96,6 +96,31 @@ function buildScript(options: BuildOptions): string[] {
       "chmod +x /etc/profile.d/go-path.sh",
     ]);
   }
+  const claudeSettings = {
+    sandbox: {
+      enabled: false,
+    },
+    permissions: {
+      deny: [],
+    },
+    env: {
+      BASH_DEFAULT_TIMEOUT_MS: "120000",
+      BASH_MAX_OUTPUT_LENGTH: "65536",
+      CLAUDE_CODE_DISABLE_TERMINAL_TITLE: "1",
+      DISABLE_AUTOUPDATER: "1",
+      DISABLE_BUG_COMMAND: "1",
+      DISABLE_ERROR_REPORTING: "1",
+      DISABLE_TELEMETRY: "1",
+      MAX_THINKING_TOKENS: "16384",
+      USE_BUILTIN_RIPGREP: "0",
+    },
+  };
+  commands.push([
+    "mkdir -p /root/.claude",
+    `cat <<'EOF' > /root/.claude/settings.json
+${JSON.stringify(claudeSettings)}
+EOF`,
+  ]);
   commands.push([
     "mkdir -p /root/.ssh",
     "chmod 700 /root/.ssh",

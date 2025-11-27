@@ -1,0 +1,5 @@
+grep:
+  fragments:
+    - name: prompts
+      include:
+        - "^prompts/.*"

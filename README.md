@@ -46,15 +46,17 @@ Skribulat is a Deno-based command-line toolkit for AI-assisted repo workflows.
   chars per turn; non-UTF8 files are skipped with warnings. Supports continuation by session UUID,
   detached/background runs, wait mode, dry-run inspection, and a configurable default model
   (`oracle.default_model`, fallback `gemini-3-pro`).
-- `plan-issue` – post a structured implementation plan for a GitHub issue. Supports `--agent`,
-  `--model`, and `--codex-auth <path>` to copy an existing host `auth.json` into the container
-  before falling back to API-key login.
+- `plan-issue` – post a structured implementation plan for an issue. Supports `--agent`, `--model`,
+  and `--codex-auth <path>` to copy an existing host `auth.json` into the container before falling
+  back to API-key login. Issues can come from GitHub (default) or a filesystem backend configured in
+  `.skribulat/config.yaml` (see Configuration).
 - `plan-and-work-on-issue` – run the planning workflow and immediately hand off to the
   implementation workflow with optional `--agent`/`--model` overrides for the work phase. Accepts
   `--codex-auth` and forwards it to both steps.
 - `work-on-issue` – spin up an agent (Codex, Claude Code, or shell) to implement a selected issue
   end-to-end. Supports `--agent`, `--model`, and `--codex-auth` for supplying a host Codex
-  credential file instead of logging in with an API key.
+  credential file instead of logging in with an API key. Works with GitHub or the filesystem issue
+  backend based on config.
 - `work-on-pr` – apply reviewer feedback to an open pull request via an agent run. Supports
   `--agent`, `--model`, and `--codex-auth` for the same credential-file workflow.
 
@@ -158,8 +160,11 @@ work_on_pr:
   agent:
     tool: codex
     model: gpt-5.1-codex-max
-    env_passthrough:
-      - REVIEW_WEBHOOK_TOKEN
+
+# Issue backend (GitHub default; filesystem optional)
+issues:
+  backend: github # or fs
+  path: .skribulat/issues # optional when backend=fs
 ```
 
 The snippet shows global defaults plus per-command overrides that swap tools, models, committed

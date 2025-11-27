@@ -2,6 +2,27 @@ import { resolve } from "@std/path";
 import { DockerRunner } from "./docker.ts";
 import { AgentToolConfig } from "./project_config.ts";
 
+const CLAUDE_SETTINGS_PATH = "/root/.claude/settings.json";
+const CLAUDE_SETTINGS = {
+  sandbox: {
+    enabled: false,
+  },
+  permissions: {
+    deny: [],
+  },
+  env: {
+    BASH_DEFAULT_TIMEOUT_MS: "120000",
+    BASH_MAX_OUTPUT_LENGTH: "65536",
+    CLAUDE_CODE_DISABLE_TERMINAL_TITLE: "1",
+    DISABLE_AUTOUPDATER: "1",
+    DISABLE_BUG_COMMAND: "1",
+    DISABLE_ERROR_REPORTING: "1",
+    DISABLE_TELEMETRY: "1",
+    MAX_THINKING_TOKENS: "16384",
+    USE_BUILTIN_RIPGREP: "0",
+  },
+};
+
 export type AgentExecutionContext = {
   anthropicApiKey?: string;
   codexAuthPath?: string;
@@ -52,6 +73,7 @@ async function runClaudeCodeAgent(
   if (!anthropicApiKey) {
     throw new Error("ANTHROPIC_API_KEY is required for Claude Code agent.");
   }
+  await writeClaudeSettingsFile(runner);
   const promptPath = "/tmp/skribulat-plan-prompt.txt";
   await copyPromptToContainer(prompt, runner, promptPath);
   const command = buildClaudeCodeCommand(config, promptPath);
@@ -87,7 +109,7 @@ async function runCodexAgent(
 }
 
 function buildClaudeCodeCommand(config: AgentToolConfig, promptPath: string): string {
-  const model = config.model ?? "sonnet";
+  const model = normalizeClaudeModel(config.model);
   const base = config.command && config.command.trim().length > 0 ? config.command.trim() : [
     "claude -p",
     "--dangerously-skip-permissions",
@@ -96,6 +118,19 @@ function buildClaudeCodeCommand(config: AgentToolConfig, promptPath: string): st
     `"$(cat ${promptPath})"`,
   ].join(" ");
   return base;
+}
+
+function normalizeClaudeModel(model?: string): string {
+  const fallback = "sonnet";
+  if (!model || model.trim().length === 0) return fallback;
+  const raw = model.trim().toLowerCase();
+  const baseAliases = new Set(["haiku", "sonnet", "opus"]);
+  const versionedAliases = new Set(["haiku-4.5", "sonnet-4.5", "opus-4.5"]);
+  if (baseAliases.has(raw)) return raw;
+  if (versionedAliases.has(raw)) return raw.replace("-4.5", "");
+  throw new Error(
+    "Invalid Claude Code model. Allowed: haiku, sonnet, opus (versionless; -4.5 suffix accepted but stripped).",
+  );
 }
 
 function buildCodexCommand(config: AgentToolConfig, promptPath: string): string {
@@ -131,6 +166,24 @@ async function copyPromptToContainer(prompt: string, runner: DockerRunner, conta
   await Deno.writeTextFile(tempFile, prompt);
   try {
     await runner.copyFromHost(tempFile, containerPath);
+  } finally {
+    await Deno.remove(tempFile).catch(() => {});
+  }
+}
+
+async function writeClaudeSettingsFile(runner: DockerRunner) {
+  const tempFile = await Deno.makeTempFile({
+    prefix: "skribulat-claude-settings-",
+    suffix: ".json",
+  });
+  await Deno.writeTextFile(tempFile, JSON.stringify(CLAUDE_SETTINGS));
+  try {
+    const mkdirResult = await runner.runBashCommand("mkdir -p /root/.claude");
+    if (mkdirResult.code !== 0) {
+      const reason = mkdirResult.stderr.trim() || `exit code ${mkdirResult.code}`;
+      throw new Error(`Failed to create /root/.claude in container: ${reason}`);
+    }
+    await runner.copyFromHost(tempFile, CLAUDE_SETTINGS_PATH);
   } finally {
     await Deno.remove(tempFile).catch(() => {});
   }

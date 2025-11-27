@@ -11,8 +11,7 @@ import { config } from "../utils/config.ts";
 import { DockerRunner } from "../utils/docker.ts";
 import { loadEnv } from "../utils/env.ts";
 import { CliError, printCliError } from "../utils/errors.ts";
-import { readFlag, readPositiveIntegerFlag } from "../utils/flags.ts";
-import { createGitHubClient, GitHubIssueComment, GitHubIssueSummary } from "../utils/github.ts";
+import { readFlag } from "../utils/flags.ts";
 import {
   explainIssueLabels,
   formatAgentsGuidance,
@@ -20,6 +19,8 @@ import {
   listAllAgentsFiles,
 } from "../utils/guidance.ts";
 import { runAgentHook } from "../utils/hooks.ts";
+import { IssueComment, IssueSummary } from "../utils/issue_provider.ts";
+import { createIssueProvider } from "../utils/issues.ts";
 import {
   AgentCliOverrides,
   AgentToolConfig,
@@ -36,13 +37,13 @@ function usage() {
       "Options:\n" +
       "  --issue <number>     Analyze a specific issue by number\n" +
       "  --agent <tool>       Agent tool to use (codex, claude-code, shell)\n" +
-      "  --model <name>       Model name (e.g., gpt-5.1-codex-max, sonnet, haiku)\n" +
+      "  --model <name>       Model name (e.g., gpt-5.1-codex-max, haiku, sonnet, opus)\n" +
       "  --codex-auth <path>  Copy Codex auth.json into the agent container before running\n" +
       "  -h, --help           Show this help message",
   );
 }
 
-async function chooseIssue(issueSummaries: GitHubIssueSummary[]) {
+async function chooseIssue(issueSummaries: IssueSummary[]) {
   if (issueSummaries.length === 0) {
     console.log("No open issues found.");
     Deno.exit(0);
@@ -51,22 +52,22 @@ async function chooseIssue(issueSummaries: GitHubIssueSummary[]) {
     const value = await select({
       message: "Select an issue:",
       choices: issueSummaries.map((issue) => ({
-        name: fitInConsoleWidth(`#${issue.number} ${issue.title}`, 2),
-        value: issue.number,
+        name: fitInConsoleWidth(`#${issue.id} ${issue.title}`, 2),
+        value: issue.id,
       })),
     });
-    return value as number;
+    return value as string;
   } catch {
     console.log("No issue selected.");
     Deno.exit(0);
   }
 }
 
-function buildCommentsBlock(comments: GitHubIssueComment[]) {
+function buildCommentsBlock(comments: IssueComment[]) {
   return comments
     .map((comment) => {
       const body = comment.body?.trim() ?? "No content.";
-      return `<comment id="${comment.databaseId}" time="${comment.createdAt}" user="${comment.author}">\n${body}\n</comment>`;
+      return `<comment id="${comment.id}" time="${comment.createdAt}" user="${comment.author}">\n${body}\n</comment>`;
     })
     .join("\n");
 }
@@ -138,12 +139,12 @@ export async function runPlanIssue(argv: string[]) {
   await loadEnv();
   const cfg = config();
   let restArgs = argv;
-  let issueNumberArg: number | undefined;
+  let issueIdArg: string | undefined;
   let cliAgent: AgentCliOverrides["tool"];
   let cliModel: AgentCliOverrides["model"];
   let codexAuthPath: string | undefined;
   try {
-    ({ rest: restArgs, value: issueNumberArg } = readPositiveIntegerFlag(restArgs, "--issue"));
+    ({ rest: restArgs, value: issueIdArg } = readFlag(restArgs, "--issue"));
     ({ rest: restArgs, value: cliAgent } = readFlag(restArgs, "--agent"));
     ({ rest: restArgs, value: cliModel } = readFlag(restArgs, "--model"));
     ({ rest: restArgs, value: codexAuthPath } = readFlag(restArgs, "--codex-auth"));
@@ -158,21 +159,17 @@ export async function runPlanIssue(argv: string[]) {
   if (!cfg.githubToken) {
     throw new CliError("GITHUB_TOKEN is not set. Provide a GitHub token in the environment.");
   }
-  const github = createGitHubClient(cfg.githubToken);
   const projectConfig = loadProjectConfig();
+  const issueProvider = createIssueProvider(projectConfig);
   const planConfig = projectConfig.planIssue ?? {};
   const agentConfig = resolveAgentConfig(projectConfig, "plan_issue", {
     tool: cliAgent,
     model: cliModel,
   });
-  const issueNumber = issueNumberArg ?? await chooseIssue(
-    await github.listOpenIssues(cfg.githubOwner, cfg.githubRepo),
+  const issueId = issueIdArg ?? await chooseIssue(
+    await issueProvider.listOpenIssues(),
   );
-  const { issue, comments } = await github.fetchIssueWithComments(
-    cfg.githubOwner,
-    cfg.githubRepo,
-    issueNumber,
-  );
+  const { issue, comments } = await issueProvider.fetchIssueWithComments(issueId);
   const agentsGuidance = fallbackAgentsGuidance(
     await formatAgentsGuidance({ labels: issue.labels, repoRoot: cfg.repoRoot }, {
       directoryMap: planConfig.agentsDirectoryMap,
@@ -190,13 +187,13 @@ export async function runPlanIssue(argv: string[]) {
     "{{CURRENT_TIME}}": new Date().toISOString(),
     "{{REPO_OWNER}}": cfg.githubOwner,
     "{{REPO_NAME}}": cfg.githubRepo,
-    "{{ISSUE_URL}}": issue.url,
-    "{{ISSUE_NUMBER}}": issue.number.toString(),
+    "{{ISSUE_URL}}": issue.url ?? "N/A",
+    "{{ISSUE_NUMBER}}": issue.number?.toString() ?? issue.id,
     "{{GUIDE_TOOL_USE}}": instructEfficientToolUse(planConfig.toolGuidance),
     "{{AGENTS_GUIDANCE}}": agentsGuidance,
     "{{LABEL_EXPLANATIONS}}": explainIssueLabels(planConfig.labelExplanations),
-    "{{ISSUE_CREATED}}": issue.createdAt,
-    "{{ISSUE_UPDATED}}": issue.updatedAt,
+    "{{ISSUE_CREATED}}": issue.createdAt ?? "",
+    "{{ISSUE_UPDATED}}": issue.updatedAt ?? "",
     "{{ISSUE_LABELS}}": issueLabels,
     "{{ISSUE_TITLE}}": issue.title,
     "{{ISSUE_BODY}}": issue.body.trim().length > 0 ? issue.body.trim() : "No description.",
@@ -207,8 +204,8 @@ export async function runPlanIssue(argv: string[]) {
   });
   const fullPrompt = composePrompt(systemInstructions, userPrompt);
   const plan = await generatePlanViaAgent(fullPrompt, planConfig, agentConfig, cfg, codexAuthPath);
-  await github.addIssueComment(issue.id, plan);
-  console.log(`Posted implementation plan to issue #${issue.number}.`);
+  await issueProvider.addComment(issue.id, plan);
+  console.log(`Posted implementation plan to issue ${issue.number ?? issue.id}.`);
 }
 
 if (import.meta.main) {
