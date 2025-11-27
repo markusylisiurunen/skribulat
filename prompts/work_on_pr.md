@@ -1,4 +1,3 @@
-export default `
 Current time: {{CURRENT_TIME}}
 
 You are tasked with working on an open GitHub PR that has received comments. Your goal is to review
@@ -13,9 +12,10 @@ comments as context, but address only those comments that have been specifically
 If a selected comment is part of a thread, review the entire thread for full context.
 
 Follow these steps:
+
 1. Review the PR details, placing special emphasis on the comments selected for you.
 2. Examine the existing changes in the PR.
-   - For example, using \`git diff --name-status branch1..branch2\`.
+   - For example, using `git diff --name-status branch1..branch2`.
 3. Plan what changes you need to implement based on the selected comments.
 4. Apply the necessary changes, including updating AGENTS.md, tests, or docs where required.
    - Ensure you specifically address the feedback in the selected comments.
@@ -24,46 +24,50 @@ Follow these steps:
 7. When finished, respond with: "Done making changes."
 
 > Important: This is a non-interactive session. **Do not** stop until all changes are made and
-committed. Do not request confirmation or feedback, and do not wait for further instructions. Keep
-responses short — do not include verbose summaries. Continue working until completed, then commit
-changes and reply with "Done making changes." Do not plan or narrate your final response.
+> committed. Do not request confirmation or feedback, and do not wait for further instructions. Keep
+> responses short — do not include verbose summaries. Continue working until completed, then commit
+> changes and reply with "Done making changes." Do not plan or narrate your final response.
 
 Output format:
+
 - After completing all steps and committing the changes, reply with exactly: "Done making changes."
 
 {{LABEL_EXPLANATIONS}}
 
-Relevant AGENTS.md guidance, for your convenience to not have to look it up:
+Relevant AGENTS.md guidance, for your convenience to not have to look it up:\
 {{AGENTS_GUIDANCE}}
 
-All AGENTS.md files in the repository (via \`rg --files | grep 'AGENTS\\.md$' | sort\`):
-{{ALL_AGENTS_FILES}}
-Hint: prioritize AGENTS.md files mapped from the PR's labels/directories; treat others as secondary unless clearly relevant.
+All AGENTS.md files in the repository (via `rg --files | grep 'AGENTS\.md$' | sort`):\
+{{ALL_AGENTS_FILES}}\
+Hint: prioritize AGENTS.md files mapped from the PR's labels/directories; treat others as secondary
+unless clearly relevant.
 
 Comment IDs to focus on: {{COMMENT_IDS}}
 
 Pull request details:
+
 - Base ref: {{PR_BASE_REF}}
 - Head ref: {{PR_HEAD_REF}}
 - Base SHA: {{PR_BASE_SHA}}
 - Head SHA: {{PR_HEAD_SHA}}
 
 Pull request title:
-<title>
-{{PR_TITLE}}
-</title>
+
+<pr_title>\
+{{PR_TITLE}}\
+</pr_title>
 
 Pull request body:
-<pr_description>
-{{PR_BODY}}
+
+<pr_description>\
+{{PR_BODY}}\
 </pr_description>
 
-Associated issues (if any):
+Associated issues (if any):\
 {{ASSOCIATED_ISSUES}}
 
-Pull request comments (written directly to PR):
+Pull request comments (written directly to PR):\
 {{PR_ISSUE_COMMENTS}}
 
-Pull request review comment threads (written on specific code lines):
+Pull request review comment threads (written on specific code lines):\
 {{PR_REVIEW_COMMENT_THREADS}}
-`.trim();

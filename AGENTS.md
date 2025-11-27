@@ -134,8 +134,8 @@ All utility files live under the `utils` folder.
 - `project_config.ts`: Parses `.skribulat/config.yaml` for agent tool configuration and workflow
   settings. Supports hierarchical overrides per command (`plan_issue`, `work_on_issue`,
   `work_on_pr`). Normalizes label mappings to lowercase.
-- `prompts.ts`: Loads embedded prompt templates (compiled into binary) and renders them with
-  `{{VARIABLE}}` substitution (case-insensitive).
+- `prompts.ts`: Loads markdown prompt templates from `prompts/` and renders them with `{{VARIABLE}}`
+  substitution (case-insensitive).
 - `text.ts`: Terminal text formatting utilities (console width truncation).
 
 ## Configuration
@@ -167,7 +167,7 @@ All utility files live under the `utils` folder.
 
 Two template sets exist:
 
-- Embedded prompts under `prompts/*.ts` loaded via `utils/prompts.ts` (paired system/user files).
+- Markdown prompts under `prompts/*.md` loaded via `utils/prompts.ts` (paired system/user files).
 - Markdown prompts under `prompts/templates/*.md`, loadable with `skribulat prompt <name>`; front
   matter is stripped before printing. `prompts/templates/index.ts` exposes `listTemplates` and
   `loadTemplate`.

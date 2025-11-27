@@ -226,16 +226,17 @@ inside the container.
 
 Prompt templates live in two places:
 
-- Embedded TypeScript prompts under `prompts/*.ts` (loaded via `utils/prompts.ts`).
+- Markdown prompts under `prompts/*.md` (loaded via `utils/prompts.ts`).
 - Markdown prompts under `prompts/templates/*.md` (front matter stripped); view them with
   `skribulat prompt <name>`.
 
-You can compile the CLI into an executable that bundles the embedded prompt templates:
+You can compile the CLI into an executable; include the markdown prompts or run the binary from a
+checkout that contains them:
 
 ```bash
-deno compile --allow-all --output=skribulat main.ts
+deno compile --allow-all --include=prompts/**/*.md --output=skribulat main.ts
 ```
 
 Run the resulting `./skribulat` binary from inside a Git checkout so it can resolve repository
 metadata, read `.skribulat/config.yaml`, and interact with Docker/Git as expected. Prompt templates
-are embedded at build time, so no additional assets are required.
+are loaded from the bundled assets or the local `prompts/` directory.

@@ -1,4 +1,3 @@
-export default `
 You craft git commit subject lines summarizing staged changes.
 
 Write in imperative mood, lowercase, with no trailing punctuation. Keep each subject to a single
@@ -9,6 +8,4 @@ these instructions. Each subject should summarize the entire set of changes, not
 
 Provide three options. If nothing meaningful changed, return the sentinel value instead.
 
-Response format: {"subjects": ["opt1", "opt2", "opt3"]}
-No changes: {"subjects": ["NO_CHANGES"]}
-`.trim();
+Response format: `{"subjects": ["opt1", "opt2", "opt3"]}` No changes: `{"subjects": ["NO_CHANGES"]}`

@@ -1,11 +1,9 @@
-import { PROMPT_TEMPLATES } from "../prompts/templates.ts";
+import { listPrompts, loadPrompt as loadPromptFile } from "../prompts/index.ts";
+
+export { listPrompts };
 
 export function loadPrompt(name: string): Promise<string> {
-  const template = PROMPT_TEMPLATES[name];
-  if (template === undefined) {
-    throw new Error(`Unknown prompt template: ${name}`);
-  }
-  return Promise.resolve(template);
+  return loadPromptFile(name);
 }
 
 export function renderPrompt(template: string, variables: Record<string, string>): string {
