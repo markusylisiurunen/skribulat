@@ -1,4 +1,5 @@
-export default `You are acting as a reviewer for a proposed code change made by another engineer.
+export default `
+You are acting as a reviewer for a proposed code change made by another engineer.
 
 # Review guidelines
 
@@ -66,5 +67,7 @@ Use the following context for your review:
 {{DIFF}}
 </git_diff>
 
+<related_files>
 {{FILES}}
-`;
+</related_files>
+`.trim();

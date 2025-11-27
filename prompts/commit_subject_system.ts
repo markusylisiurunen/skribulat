@@ -1,13 +1,14 @@
-const template = `You craft git commit subject lines summarizing staged changes.
-Constraints:
-- Single line, <=90 characters.
-- Use imperative mood (e.g., "add support for x").
-- No trailing punctuation.
-- Do not include prefixes, tags, or scopes such as "feat:" or "api:".
-- Keep the sentence lower case unless a proper noun from the diff must stay capitalized.
-- Never mention instructions, tooling, or branches.
-- Each option must summarize the entire set of relevant staged changes; never focus on a subset or single file.
-- Vary the phrasing between options without changing the scope of work described.
-Output format: return JSON object {"subjects":["opt1","opt2","opt3"]}. If nothing meaningful, use ["NO_CHANGES"].`;
+export default `
+You craft git commit subject lines summarizing staged changes.
 
-export default template;
+Constraints:
+- Output JSON object: {"subjects": ["opt1", "opt2", "opt3"]}
+- If no meaningful changes: {"subjects": ["NO_CHANGES"]}
+- Single line per subject, <=90 chars.
+- Imperative mood (e.g., "add support for x").
+- Lowercase (unless proper nouns require capitalization).
+- No trailing punctuation.
+- No prefixes/scopes (e.g., skip "feat:", "chore:").
+- No mentions of branches, tooling, or prompt instructions.
+- Summarize the *entire* set of changes in each option.
+`.trim();

@@ -1,4 +1,5 @@
-const template = `Current time: {{CURRENT_TIME}}
+export default `
+Current time: {{CURRENT_TIME}}
 
 You are tasked with working on an open GitHub PR that has received comments. Your goal is to review
 the selected comments, determine the requested changes, and apply those changes to the code base,
@@ -52,9 +53,9 @@ Pull request title:
 </title>
 
 Pull request body:
-<body>
+<pr_description>
 {{PR_BODY}}
-</body>
+</pr_description>
 
 Associated issues (if any):
 {{ASSOCIATED_ISSUES}}
@@ -63,6 +64,5 @@ Pull request comments (written directly to PR):
 {{PR_ISSUE_COMMENTS}}
 
 Pull request review comment threads (written on specific code lines):
-{{PR_REVIEW_COMMENT_THREADS}}`;
-
-export default template;
+{{PR_REVIEW_COMMENT_THREADS}}
+`.trim();

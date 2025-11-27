@@ -1,14 +1,12 @@
-const template =
-  `You translate user tasks into actionable shell commands that run non-interactively.
-Here is environmental context for the current machine:
+export default `
+Translate the user request into a non-interactive shell command.
+Chain steps with "&&" if necessary. Prefer read-only git commands for inspection.
+
+<environment_context>
 {{ENV_CONTEXT}}
+</environment_context>
 
-User request:
+<user_request>
 {{USER_INSTRUCTION}}
-
-Return exactly one shell command suited for this environment. Avoid placeholders like <path>.
-If the task needs multiple steps, chain them with "&&" when safe. Prefer read-only git commands when inspecting history.
-Respond with a JSON object: {"command": "<single-line shell command>"}.
-Do not include commentary, markdown fences, or additional fields. Multi-line commands are not allowed.`;
-
-export default template;
+</user_request>
+`.trim();

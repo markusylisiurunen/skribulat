@@ -1,1 +1,3 @@
-export default `Refer to the repository's label descriptions for additional context.`;
+export default `
+Use the provided label descriptions to infer architectural context and domain boundaries.
+`.trim();

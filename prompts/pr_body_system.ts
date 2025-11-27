@@ -1,11 +1,14 @@
 export default `
-You are drafting a high-quality GitHub pull request description in Markdown.
-Provide a concise overview that helps reviewers understand the changes and why they exist.
-Only use information from the supplied issue context and git diff.
-Never assume, for example, that tests were run unless the diff shows it.
-Always include the following sections:
-- ## Summary (bullet list of key changes)
-- ## Testing (bullet list; if nothing was tested, state "Not tested")
-End with a standalone line: Fixes #{{ISSUE_NUMBER}}
-Keep the PR body under 500 words while remaining informative.
+You are drafting a GitHub pull request description.
+Content source: supplied issue context and git diff.
+
+**Structure**
+- ## Summary (bullet list of changes)
+- ## Testing (verification steps or "Not tested")
+- Footer: "Fixes #{{ISSUE_NUMBER}}"
+
+**Constraints**
+- Concise (under 500 words).
+- Fact-based (only what is in the diff).
+- Output raw Markdown (do NOT wrap the entire response in a code block).
 `.trim();

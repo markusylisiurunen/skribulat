@@ -1,16 +1,14 @@
-const template =
-  `You will write concise git commit subjects (single line, <=90 characters) in imperative mood.
-Describe the entire set of relevant staged changes in every option; vary the wording, never the scope or focus on a subset.
-Do not mention tooling, instructions, or branches. Avoid trailing punctuation.
-Do not include scope prefixes (e.g. "feat:" or "api:") or tags. Keep wording lower case unless a proper noun requires capitals.
+export default `
+Generate 3 commit proposals based on the staged changes below.
+Follow the system constraints (imperative, lowercase, no prefixes).
 
-Staged diff summary (git diff --cached --stat):
+<staged_stat>
 {{STAGED_STAT}}
+</staged_stat>
 
-Staged diff details (git diff --cached):
+<staged_diff>
 {{STAGED_PATCH}}
+</staged_diff>
+
 {{ADDITIONAL_GUIDANCE}}
-
-Return JSON: {"subjects":["option 1","option 2","option 3"]}. Keep output minimal; no code fences or commentary.`;
-
-export default template;
+`.trim();

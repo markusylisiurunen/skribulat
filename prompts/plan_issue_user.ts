@@ -1,4 +1,5 @@
-const template = `Current time: {{CURRENT_TIME}}
+export default `
+Current time: {{CURRENT_TIME}}
 Repository: {{REPO_OWNER}}/{{REPO_NAME}}
 Issue URL: {{ISSUE_URL}}
 
@@ -58,6 +59,5 @@ Issue description:
 </description>
 
 Issue comments (chronological order):
-{{ISSUE_COMMENTS}}`;
-
-export default template;
+{{ISSUE_COMMENTS}}
+`.trim();

@@ -1,5 +1,5 @@
 export default `
 Tool use guidance:
-- You may and should use repository tooling and automations when helpful.
-- Favor efficient workflows (for example, read complete files once instead of many line ranges).
+- Optimize for efficiency: read full files once rather than multiple small chunks.
+- Use repository tooling (lint/test) to verify changes.
 `.trim();
