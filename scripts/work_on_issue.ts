@@ -97,20 +97,27 @@ Issue metadata:
     "{{description}}": issueBody.length > 0 ? issueBody : "No description.",
     "{{comments}}": commentsBlock,
   });
-  let branchName = await generateCompletion({
-    maxTokens: 128,
-    model: BRANCH_MODEL,
-    prompt,
-    reasoningMaxTokens: 64,
-    systemInstructions,
-    temperature: 0.2,
-  });
-  branchName = branchName.trim().split("\n").at(0) ?? "";
-  const isValid = /^[a-z0-9]+(-[a-z0-9]+)*$/.test(branchName);
-  if (!isValid) {
-    throw new Error(`Generated branch name is invalid: ${branchName}`);
+  const MAX_ATTEMPTS = 3;
+  let lastBranchName = "";
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    const raw = await generateCompletion({
+      maxTokens: 128,
+      model: BRANCH_MODEL,
+      prompt,
+      reasoningMaxTokens: 64,
+      systemInstructions,
+      temperature: 0.2,
+    });
+    const branchName = raw.trim().split("\n").at(0) ?? "";
+    lastBranchName = branchName;
+    const isValid = /^[a-z0-9]+(-[a-z0-9]+)*$/.test(branchName);
+    if (isValid) return branchName;
   }
-  return branchName;
+  const sanitized = sanitizeBranchName(lastBranchName);
+  if (sanitized.length === 0) {
+    throw new Error(`Generated branch name is empty after sanitization: ${lastBranchName}`);
+  }
+  return sanitized;
 }
 
 function buildIssueCommentsBlock(comments: GitHubIssueComment[]) {
@@ -138,6 +145,15 @@ async function prepareIssueBranch(
       throw new Error(`Git command failed: ${cmd}\n${stdout}\n${stderr}`);
     }
   }
+}
+
+function sanitizeBranchName(name: string) {
+  let sanitized = name.trim().toLowerCase();
+  sanitized = sanitized.replace(/[_/]+/g, "-");
+  sanitized = sanitized.replace(/[^a-z0-9-]+/g, "-");
+  sanitized = sanitized.replace(/^-+/, "").replace(/-+$/, "");
+  sanitized = sanitized.replace(/-+/g, "-");
+  return sanitized;
 }
 
 async function collectDiffForPrompt(runner: DockerRunner, diffRange: string) {

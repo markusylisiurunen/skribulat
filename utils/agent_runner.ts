@@ -100,15 +100,20 @@ function buildClaudeCodeCommand(config: AgentToolConfig, promptPath: string): st
 
 function buildCodexCommand(config: AgentToolConfig, promptPath: string): string {
   const model = config.model ?? "gpt-5.1-codex-max";
-  const reasoningEffort = config.reasoningEffort ?? "low";
+  const reasoningEffort = config.reasoningEffort ?? "high";
   const base = config.command && config.command.trim().length > 0 ? config.command.trim() : [
     "codex exec --json",
     "--dangerously-bypass-approvals-and-sandbox",
     `--model ${model}`,
     `-c shell_environment_policy.ignore_default_excludes=true`,
+    `-c shell_environment_policy.inherit=\"all\"`,
     `-c tool_output_token_limit=8192`,
     `-c model_reasoning_effort=\"${reasoningEffort}\"`,
-    `-c model_reasoning_summary=\"auto\"`,
+    `-c model_reasoning_summary=\"detailed\"`,
+    `-c model_verbosity=\"high\"`,
+    `-c features.web_search_request=true`,
+    `-c features.apply_patch_freeform=true`,
+    `-c features.view_image_tool=true`,
   ].join(" ");
   return buildCommand(base, promptPath);
 }

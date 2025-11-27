@@ -40,6 +40,9 @@ type ParsedArgs = {
   exclude: RegExp[];
   fragmentNames: string[];
   prompt?: string;
+  showId?: string;
+  copyId?: string;
+  copyResponseIndex?: number;
   stdinText?: string;
   detached: boolean;
   continueId?: string;
@@ -57,6 +60,8 @@ const TOTAL_LINE_LIMIT = 50_000;
 const TOTAL_CHAR_LIMIT = 1_000_000;
 const DEFAULT_TIMEOUT = 30;
 const POLL_INTERVAL_MS = 500;
+const DISPLAY_PREVIEW_CHARS = 200;
+const COPY_NEWLINE = "\n";
 const MODEL_ALIASES = {
   "gemini-3-pro": "google/gemini-3-pro-preview",
   "gemini-2.5-flash": "google/gemini-2.5-flash-preview-09-2025",
@@ -102,6 +107,8 @@ function usage(defaultModel: ModelAlias) {
       '  skribulat oracle -w "<uuid>" -t 45',
       '  skribulat oracle -c "<uuid>" -i "^package\\.json$" -p "continue existing session with a new prompt"',
       '  skribulat oracle --dry-run -i "^src/api" -p "inspect without calling the model"',
+      '  skribulat oracle -s "<uuid>"',
+      '  skribulat oracle --copy "<uuid>" | pbcopy',
       "",
       "Options:",
       "  -p, --prompt <text>      Question or instruction for the oracle",
@@ -111,6 +118,9 @@ function usage(defaultModel: ModelAlias) {
       "  -d, --detached           Run query in a detached background process (prints session UUID)",
       "  -c, --continue <uuid>    Append a follow-up message to an existing session",
       "  -w, --wait <uuid>        Wait for a detached session to finish",
+      "  -s, --show <uuid>        Print full conversation history for a session",
+      "      --copy <uuid>        Print a single assistant response for piping (e.g., to pbcopy)",
+      "  -r, --response <n>       Response index to copy (1-based within assistant replies; defaults to last)",
       "  -t, --timeout <seconds>  Maximum seconds to wait with -w (default 30)",
       `  -m, --model <name>       Model alias: gemini-3-pro | gemini-2.5-flash | gpt-5.1 | gpt-5.1-pro (default ${defaultModel})`,
       "      --dry-run            Show what would be sent without calling the model",
@@ -175,6 +185,9 @@ function parseArgs(argv: readonly string[], defaultModel: ModelAlias): ParsedArg
   const fragmentNames: string[] = [];
   let prompt: string | undefined;
   let detached = false;
+  let showId: string | undefined;
+  let copyId: string | undefined;
+  let copyResponseIndex: number | undefined;
   let continueId: string | undefined;
   let waitId: string | undefined;
   let timeoutSeconds = DEFAULT_TIMEOUT;
@@ -259,6 +272,45 @@ function parseArgs(argv: readonly string[], defaultModel: ModelAlias): ParsedArg
       if (!waitId) throw new CliError("--wait flag requires a value.");
       continue;
     }
+    if (arg === "--copy") {
+      copyId = argv[++i];
+      if (!copyId) throw new CliError(`${arg} flag requires a value.`);
+      continue;
+    }
+    if (arg.startsWith("--copy=")) {
+      copyId = arg.slice("--copy=".length);
+      if (!copyId) throw new CliError("--copy flag requires a value.");
+      continue;
+    }
+    if (arg === "-r" || arg === "--response") {
+      const value = argv[++i];
+      if (!value) throw new CliError(`${arg} flag requires a value.`);
+      const parsed = Number(value);
+      if (!Number.isInteger(parsed) || parsed <= 0) {
+        throw new CliError("Response index must be a positive integer.");
+      }
+      copyResponseIndex = parsed;
+      continue;
+    }
+    if (arg.startsWith("--response=")) {
+      const value = arg.slice("--response=".length);
+      const parsed = Number(value);
+      if (!Number.isInteger(parsed) || parsed <= 0) {
+        throw new CliError("Response index must be a positive integer.");
+      }
+      copyResponseIndex = parsed;
+      continue;
+    }
+    if (arg === "-s" || arg === "--show") {
+      showId = argv[++i];
+      if (!showId) throw new CliError(`${arg} flag requires a value.`);
+      continue;
+    }
+    if (arg.startsWith("--show=")) {
+      showId = arg.slice("--show=".length);
+      if (!showId) throw new CliError("--show flag requires a value.");
+      continue;
+    }
     if (arg === "-t" || arg === "--timeout") {
       const value = argv[++i];
       if (!value) throw new CliError(`${arg} flag requires a value.`);
@@ -324,6 +376,9 @@ function parseArgs(argv: readonly string[], defaultModel: ModelAlias): ParsedArg
     exclude,
     fragmentNames,
     prompt,
+    showId,
+    copyId,
+    copyResponseIndex,
     stdinText: undefined,
     detached,
     continueId,
@@ -480,14 +535,16 @@ function ensurePromptProvided(prompt?: string) {
 function validateIntent(args: ParsedArgs) {
   const isAsk = !!args.prompt || !!args.include.length || !!args.continueId;
   const isWait = !!args.waitId;
+  const isShow = !!args.showId;
+  const isCopy = !!args.copyId;
   const isInternal = !!args.internalProcessId;
-  const activeModes = [isAsk, isWait, isInternal].filter(Boolean).length;
+  const activeModes = [isAsk, isWait, isShow, isCopy, isInternal].filter(Boolean).length;
   if (activeModes === 0) {
     usage(DEFAULT_MODEL_ALIAS);
-    throw new CliError("No action specified. Provide a prompt or use --wait.");
+    throw new CliError("No action specified. Provide a prompt or use --wait/--show/--copy.");
   }
   if (activeModes > 1) {
-    throw new CliError("Choose one mode at a time: ask, wait, or internal process.");
+    throw new CliError("Choose one mode at a time: ask, wait, show, copy, or internal process.");
   }
 }
 
@@ -736,6 +793,93 @@ function appendStdinToPrompt(prompt: string, stdinText?: string): string {
   return `${prompt}\n\n<stdin>\n${stdinText}\n</stdin>`;
 }
 
+function buildTruncatedPreview(content: string): string {
+  const preview = content.slice(0, DISPLAY_PREVIEW_CHARS);
+  const ellipsis = content.length > DISPLAY_PREVIEW_CHARS ? "..." : "";
+  return `${preview}${ellipsis} [content truncated]`;
+}
+
+function sanitizeUserPrompt(prompt: string): string {
+  const replaceBlock = (
+    input: string,
+    regex: RegExp,
+    builder: (attrs: string, inner: string) => string,
+  ): string => {
+    return input.replace(regex, (_match, attrs, inner) => builder(attrs ?? "", inner ?? ""));
+  };
+
+  let sanitized = replaceBlock(
+    prompt,
+    /<stdin([^>]*)>([\s\S]*?)<\/stdin>/gi,
+    (attrs, inner) => `<stdin${attrs}>${buildTruncatedPreview(inner)}</stdin>`,
+  );
+
+  sanitized = replaceBlock(
+    sanitized,
+    /<file([^>]*)>([\s\S]*?)<\/file>/gi,
+    (attrs, inner) => `<file${attrs}>${buildTruncatedPreview(inner)}</file>`,
+  );
+
+  return sanitized;
+}
+
+function printSessionHistory(state: SessionState) {
+  printSessionId(state.id);
+  console.log(`Model: ${state.model}`);
+  console.log(`Status: ${state.status}${state.error ? ` (${state.error})` : ""}`);
+  console.log(`Created: ${state.createdAt}`);
+  console.log(`Updated: ${state.updatedAt}`);
+
+  state.messages.forEach((message, index) => {
+    console.log();
+    console.log(`[${index + 1}] user @ ${message.createdAt}`);
+    console.log(sanitizeUserPrompt(message.prompt));
+    if (message.attachments.length > 0) {
+      console.log("Attachments:");
+      message.attachments.forEach((attachment) => {
+        const lines = countLines(attachment.content);
+        console.log(`- ${attachment.path} (${lines} lines, ${attachment.content.length} chars)`);
+      });
+    }
+    if (message.response) {
+      console.log();
+      console.log(`assistant:`);
+      console.log(message.response);
+    }
+  });
+}
+
+async function handleShowFlow(args: ParsedArgs) {
+  if (!args.showId) throw new CliError("Missing session id for --show.");
+  const state = await loadSession(args.showId);
+  printSessionHistory(state);
+}
+
+function findAssistantResponses(state: SessionState): string[] {
+  return state.messages
+    .map((msg) => msg.response)
+    .filter((response): response is string => !!response);
+}
+
+async function handleCopyFlow(args: ParsedArgs) {
+  if (!args.copyId) throw new CliError("Missing session id for --copy.");
+  const state = await loadSession(args.copyId);
+  const responses = findAssistantResponses(state);
+  if (responses.length === 0) {
+    throw new CliError("No assistant responses found for this session.");
+  }
+  const index = args.copyResponseIndex ?? responses.length;
+  if (index < 1 || index > responses.length) {
+    throw new CliError(
+      `Response index ${index} is out of range (1-${responses.length}).`,
+    );
+  }
+  // Print only the selected response so piping to pbcopy grabs clean text.
+  const selected = responses[index - 1];
+  // Ensure trailing newline for pbcopy ergonomics.
+  Deno.stdout.write(new TextEncoder().encode(selected + COPY_NEWLINE));
+}
+
 export async function runOracle(argv: string[]) {
   await loadEnv();
   const projectConfig = loadProjectConfig();
@@ -743,11 +887,15 @@ export async function runOracle(argv: string[]) {
   const parsed = parseArgs(argv, defaultModel);
   const fragments = resolveFragments(parsed.fragmentNames, projectConfig.oracle?.fragments);
 
-  const stdinPrompt = await readPromptFromStdin();
-  if (stdinPrompt) {
-    parsed.stdinText = stdinPrompt;
-    if (!parsed.prompt && !parsed.waitId && !parsed.internalProcessId) {
-      parsed.prompt = stdinPrompt;
+  const shouldReadStdin = !parsed.waitId && !parsed.internalProcessId && !parsed.showId &&
+    !parsed.copyId;
+  if (shouldReadStdin) {
+    const stdinPrompt = await readPromptFromStdin();
+    if (stdinPrompt) {
+      parsed.stdinText = stdinPrompt;
+      if (!parsed.prompt) {
+        parsed.prompt = stdinPrompt;
+      }
     }
   }
 
@@ -759,6 +907,16 @@ export async function runOracle(argv: string[]) {
 
   if (parsed.internalProcessId) {
     await handleInternalProcess(parsed.internalProcessId);
+    return;
+  }
+
+  if (parsed.copyId) {
+    await handleCopyFlow(parsed);
+    return;
+  }
+
+  if (parsed.showId) {
+    await handleShowFlow(parsed);
     return;
   }
 

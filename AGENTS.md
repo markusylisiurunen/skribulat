@@ -29,9 +29,9 @@ All scripts live under the `scripts` folder (e.g., `scripts/commit.ts`).
   from repo root, filters to files within cwd (excludes `..` paths), converts paths to POSIX format.
   Supports `-i`/`--include` and `-e`/`--exclude` regex filters (repeatable). Default output:
   directory structure section (grouped by directory) + file contents section (each file wrapped in
-  `<file path="...">` tags). With `--stats` flag: prints lines and estimated token count per file
-  (via `tokenx` library), plus total token estimate. Useful for preparing codebase context for LLM
-  prompts or assessing context window requirements.
+  `<file path="...">` tags). Use `--dry-run` to list matching files with line and estimated token
+  counts (via `tokenx`), plus a total token estimate—helpful for sizing LLM context windows before
+  emitting full file contents.
 - `oracle.ts`: CLI for oracle-style Q&A. Supports prompts (`-p`) or piped stdin (when `-p` is
   omitted), regex file attachments/excludes (`-i`/`-e`), fragment attachments configured under
   `oracle.fragments` (`-f/--fragment`, can be combined with `-i/-e` which only affect ad-hoc
@@ -70,7 +70,8 @@ All scripts live under the `scripts` folder (e.g., `scripts/commit.ts`).
   both plan and work phases.
 - `review.ts`: Generates an optimized code review prompt by consuming a git diff from stdin. Parses
   the diff to identify modified files and includes their full content along with the diff itself in
-  the prompt. Designed to be piped to an LLM.
+  the prompt. Supports `-i`/`--include <regex>` to force-add files, `-e`/`--exclude <regex>` to drop
+  files, and `--dry-run` to list which files would be included without generating the prompt.
 - `work_on_issue.ts`: End-to-end issue implementation via agent (Codex, Claude Code, or shell).
   Supports `--issue <number>`, `--agent <tool>` (codex, claude-code, shell), `--model <name>` (e.g.,
   gpt-5.1-codex-max, sonnet, haiku), and `--codex-auth <path>` for copying host Codex credentials
@@ -131,8 +132,6 @@ All utility files live under the `utils` folder.
   `work_on_pr`). Normalizes label mappings to lowercase.
 - `prompts.ts`: Loads embedded prompt templates (compiled into binary) and renders them with
   `{{VARIABLE}}` substitution (case-insensitive).
-- `template.ts`: Generic template rendering utility (currently unused; `prompts.ts` is the active
-  implementation).
 - `text.ts`: Terminal text formatting utilities (console width truncation).
 
 ## Configuration

@@ -97,6 +97,8 @@ export class DockerRunner {
   async *streamBashCommand(cmd: string, opts?: BashOptions) {
     await this.ensureRunning();
     if (!this.containerId) throw new Error("Container is not running");
+    const stdoutDecoder = new TextDecoder();
+    const stderrDecoder = new TextDecoder();
     const dockerCmd: [string, ...string[]] = ["docker", "exec", "-i"];
     if (opts?.cwd) dockerCmd.push("-w", opts.cwd);
     dockerCmd.push(this.containerId, "bash", "-lc", cmd);
@@ -139,12 +141,19 @@ export class DockerRunner {
           stderrDone = true;
         }
       } else {
-        const data = textDecoder.decode(result.value.value);
-        if (result.stream === "stderr") {
-          stderrOutput += data;
-        }
-        yield { stream: result.stream, data };
+        const data = result.stream === "stdout"
+          ? stdoutDecoder.decode(result.value.value, { stream: true })
+          : stderrDecoder.decode(result.value.value, { stream: true });
+        if (result.stream === "stderr") stderrOutput += data;
+        if (data) yield { stream: result.stream, data };
       }
+    }
+    const remainingStdout = stdoutDecoder.decode();
+    if (remainingStdout) yield { stream: "stdout", data: remainingStdout };
+    const remainingStderr = stderrDecoder.decode();
+    if (remainingStderr) {
+      stderrOutput += remainingStderr;
+      yield { stream: "stderr", data: remainingStderr };
     }
     const status = await child.status;
     if (!status.success) {
