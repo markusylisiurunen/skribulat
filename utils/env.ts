@@ -1,5 +1,5 @@
 import { load } from "@std/dotenv";
-import { dirname, join, relative, resolve as resolvePath } from "@std/path";
+import { dirname, join, resolve as resolvePath } from "@std/path";
 import { resolveRepoRoot } from "./git.ts";
 
 type LoadEnvOptions = {
@@ -52,16 +52,5 @@ export async function loadEnv({ cwd = Deno.cwd(), force = false }: LoadEnvOption
       loadedFiles.add(envPath);
       newlyLoaded.push(envPath);
     }
-  }
-  if (newlyLoaded.length > 0) {
-    const relativePaths = newlyLoaded.map((path) => {
-      try {
-        const rel = relative(repoRoot, path);
-        return rel.length > 0 ? rel : path;
-      } catch {
-        return path;
-      }
-    });
-    console.log(`Loaded env files: ${relativePaths.join(", ")}`);
   }
 }
