@@ -40,7 +40,8 @@ export async function setupAgentWorkspace(
 }
 
 function shellEscape(argument: string) {
-  return `'${argument.replaceAll("'", `'\\''`)}'`;
+  // Surround with single quotes and escape internal single quotes for POSIX shells.
+  return `'${argument.replaceAll("'", "'\\''")}'`;
 }
 
 export async function verifyGithubHttps(

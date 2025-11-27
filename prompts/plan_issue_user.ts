@@ -12,6 +12,7 @@ After each stage of information gathering (reviewing the issue, comments, or cod
 Steps to follow:
 1. Thoroughly read the issue description and all related discussion in the comments.
 2. Explore the repository to identify relevant files, functions, and code patterns.
+   - Confirm the existence of any files or functions mentioned in the issue; do not assume the paths are correct.
 3. Consider any pertinent AGENTS.md files.
 4. Develop a complete, step-by-step implementation plan written in clear natural language.
 
