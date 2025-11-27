@@ -12,7 +12,7 @@ After each stage of information gathering (reviewing the issue, comments, or cod
 
 Steps to follow:
 1. Thoroughly read the issue description and all related discussion in the comments.
-2. Explore the repository to identify relevant files, functions, and code patterns.
+2. Explore the repository to identify relevant files, functions, code patterns, and existing tests.
    - Confirm the existence of any files or functions mentioned in the issue; do not assume the paths are correct.
 3. Consider any pertinent AGENTS.md files.
 4. Develop a complete, step-by-step implementation plan written in clear natural language.
@@ -27,17 +27,19 @@ Hint: prioritize AGENTS.md files mapped from the issue's labels/directories; tre
 Output instructions:
 - Respond with a Markdown document detailed enough for a developer unfamiliar with the issue to follow.
 - Structure the document exactly as follows:
-  1. A single-paragraph summary of the issue and context
-  2. ## Background
+  1. Start marker \`__PLAN_START__\` followed by a single newline
+  2. A single-paragraph summary of the issue and context
+  3. ## Background
       - Detailed explanation of the issue, context, and relevant details from comments
-  3. ## Implementation plan
+  4. ## Implementation plan
       - Detailed, step-by-step plan for addressing the issue
-  4. ## Relevant files
+  5. ## Relevant files
       - List all identified relevant files, code sections, and their roles
       - If none are found, state: "No relevant files identified."
-  5. ## Open questions
+  6. ## Open questions
       - List any open questions or uncertainties to address before implementation
       - If there are none, state: "No open questions."
+  7. End marker \`__PLAN_END__\` on its own line
 - Do not copy or repeat any previous implementation plan from the issue. Synthesize and refine based on all available context.
 - Do not output anything outside of the required implementation plan structure.
 

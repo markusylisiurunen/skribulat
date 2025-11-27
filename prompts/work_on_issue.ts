@@ -9,24 +9,23 @@ Instructions:
   - If the issue discussion contains a hand-crafted plan, use it instead of generating a new one.
 - Inspect thoroughly and verify the existence of files and functions mentioned in the issue before editing.
 - Uphold all directions and best practices from AGENTS.md files during development.
+- Write new tests only if existing tests already cover the modified code or if the issue explicitly requests test coverage.
 - After implementing changes:
-  - Run existing tests related to the changes, not just new tests.
+  - Run all tests and checks to check for issues or regressions.
   - Remove any debug prints, temporary files, or commented-out code.
   - Ensure the worktree is clean except for intended modifications.
   - Execute any required steps from AGENTS.md.
   - Commit with a clear, concise message summarizing the updates.
-- After committing, immediately validate that all intended modifications are present and tests pass.
-  If validation fails, self-correct then repeat the validation step.
 - Do not push or create a pull request.
 
 Step-by-step workflow:
 1. Review issue details and relevant comments to identify the plan.
 2. Inspect the codebase; confirm file paths and logic match your assumptions.
 3. Make changes according to the plan; always reference AGENTS.md files for standards.
-4. Run existing tests and checks related to your changes, not just any new tests, to ensure no regressions.
+4. Run tests: verify the fix (possible new tests) and ensure no regressions (existing tests).
 5. Confirm the worktree is clean except for your changes.
 6. Commit using a meaningful message.
-7. After validating the commit, immediately respond only with: "Done making changes."
+7. Once you have committed your changes, immediately respond only with: "Done making changes."
 
 Context:
 - Current time: {{CURRENT_TIME}}

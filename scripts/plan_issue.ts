@@ -83,18 +83,15 @@ function composePrompt(systemInstructions: string, userPrompt: string) {
 }
 
 function extractImplementationPlan(output: string) {
-  const lines = output.split(/\r?\n/);
-  const findHeading = (heading: string) =>
-    lines.findIndex((line) => line.trimStart().startsWith(heading));
+  const startMarker = "__PLAN_START__";
+  const endMarker = "__PLAN_END__";
 
-  const h1Index = findHeading("# Implementation");
-  if (h1Index !== -1) {
-    return lines.slice(h1Index).join("\n").trim();
-  }
+  const startIndex = output.indexOf(startMarker);
+  const endIndex = output.indexOf(endMarker);
 
-  const h2Index = findHeading("## Implementation");
-  if (h2Index !== -1) {
-    return lines.slice(h2Index).join("\n").trim();
+  if (startIndex !== -1 && endIndex !== -1 && endIndex > startIndex) {
+    const content = output.substring(startIndex + startMarker.length, endIndex).trim();
+    return content;
   }
 
   return output.trim();

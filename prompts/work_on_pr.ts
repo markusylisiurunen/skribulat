@@ -18,6 +18,7 @@ Follow these steps:
    - For example, using \`git diff --name-status branch1..branch2\`.
 3. Plan what changes you need to implement based on the selected comments.
 4. Apply the necessary changes, including updating AGENTS.md, tests, or docs where required.
+   - Ensure you specifically address the feedback in the selected comments.
 5. Review your work to ensure the changes are focused and fully address the selected comments.
 6. Commit the changes with a clear and descriptive commit message.
 7. When finished, respond with: "Done making changes."
