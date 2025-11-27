@@ -21,6 +21,7 @@ Relevant AGENTS.md guidance for quick reference:
 
 All AGENTS.md files in the repository (via \`rg --files | grep 'AGENTS\\.md$' | sort\`):
 {{ALL_AGENTS_FILES}}
+Hint: prioritize AGENTS.md files mapped from the issue's labels/directories; treat others as secondary unless clearly relevant.
 
 Output instructions:
 - Respond with a Markdown document detailed enough for a developer unfamiliar with the issue to follow.

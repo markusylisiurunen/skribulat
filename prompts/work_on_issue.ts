@@ -41,6 +41,7 @@ Relevant AGENTS.md guidance, for your convenience to not have to look it up:
 
 All AGENTS.md files in the repository (via \`rg --files | grep 'AGENTS\\.md$' | sort\`):
 {{ALL_AGENTS_FILES}}
+Hint: prioritize AGENTS.md files mapped from the issue's labels/directories; treat others as secondary unless clearly relevant.
 
 {{LABEL_EXPLANATIONS}}
 
