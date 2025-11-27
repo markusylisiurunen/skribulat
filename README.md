@@ -22,8 +22,7 @@ Skribulat is a Deno-based command-line toolkit for AI-assisted repo workflows.
   it. Supports `--model` with aliases `claude`, `gemini`, and `gpt`.
 - `review` – generate an optimized code review prompt from a git diff (piped via stdin), including
   full content of modified files. Supports `-i/--include <regex>` to force-add files,
-  `-e/--exclude
-  <regex>` to drop files, and `--dry-run` to list which files would be included
+  `-e/--exclude <regex>` to drop files, and `--dry-run` to list which files would be included
   without emitting the prompt.
 - `markdown-codebase` – render git-visible files (tracked plus untracked, non-ignored) from the
   current working tree as Markdown. Deleted files are skipped; new unignored files are included. Use
@@ -235,7 +234,7 @@ You can compile the CLI into an executable; include the markdown prompts or run 
 checkout that contains them:
 
 ```bash
-deno compile --allow-all --include=prompts/**/*.md --output=skribulat main.ts
+deno compile -q -A --include=prompts/system --include=prompts/templates -o=skribulat main.ts
 ```
 
 Run the resulting `./skribulat` binary from inside a Git checkout so it can resolve repository
