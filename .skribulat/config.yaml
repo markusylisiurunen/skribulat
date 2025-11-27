@@ -3,3 +3,7 @@ grep:
     - name: prompts
       include:
         - "^prompts/.*"
+
+issues:
+  backend: fs
+  path: .skribulat/issues

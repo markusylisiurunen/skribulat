@@ -82,6 +82,24 @@ function composePrompt(systemInstructions: string, userPrompt: string) {
   );
 }
 
+function extractImplementationPlan(output: string) {
+  const lines = output.split(/\r?\n/);
+  const findHeading = (heading: string) =>
+    lines.findIndex((line) => line.trimStart().startsWith(heading));
+
+  const h1Index = findHeading("# Implementation");
+  if (h1Index !== -1) {
+    return lines.slice(h1Index).join("\n").trim();
+  }
+
+  const h2Index = findHeading("## Implementation");
+  if (h2Index !== -1) {
+    return lines.slice(h2Index).join("\n").trim();
+  }
+
+  return output.trim();
+}
+
 async function generatePlanViaAgent(
   prompt: string,
   _planConfig: PlanIssueConfig,
@@ -205,7 +223,8 @@ export async function runPlanIssue(argv: string[]) {
   });
   const fullPrompt = composePrompt(systemInstructions, userPrompt);
   const plan = await generatePlanViaAgent(fullPrompt, planConfig, agentConfig, cfg, codexAuthPath);
-  await issueProvider.addComment(issue.id, plan);
+  const implementationPlan = extractImplementationPlan(plan);
+  await issueProvider.addComment(issue.id, implementationPlan);
   console.log(`Posted implementation plan to issue ${issue.number ?? issue.id}.`);
 }
 

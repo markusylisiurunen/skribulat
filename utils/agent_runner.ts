@@ -111,10 +111,12 @@ async function runCodexAgent(
 function buildClaudeCodeCommand(config: AgentToolConfig, promptPath: string): string {
   const model = normalizeClaudeModel(config.model);
   const base = config.command && config.command.trim().length > 0 ? config.command.trim() : [
-    "claude -p",
+    "claude",
     "--dangerously-skip-permissions",
     `--model ${model}`,
     "--output-format stream-json",
+    "--verbose",
+    "--print",
     `"$(cat ${promptPath})"`,
   ].join(" ");
   return base;
@@ -400,18 +402,74 @@ function prefix() {
 }
 
 type ClaudeCodeEvent =
-  | { type: "system"; subtype: string }
-  | {
-    type: "assistant";
-    message: {
-      content: Array<
-        | { type: "text"; text: string }
-        | { type: "tool_use"; name: string; input: Record<string, unknown> }
-      >;
-    };
-  }
-  | { type: "user"; message: Record<string, unknown> }
-  | { type: "result"; subtype: string; result?: string; is_error: boolean };
+  | ClaudeEventSystem
+  | ClaudeEventAssistant
+  | ClaudeEventUser
+  | ClaudeEventResult;
+
+type ClaudeEventSystem = {
+  type: "system";
+  subtype: "init";
+  model: string;
+  tools?: string[];
+};
+
+type ContentThinking = { type: "thinking"; thinking: string };
+type ContentToolUse = {
+  type: "tool_use";
+  name: string;
+  input: Record<string, unknown>;
+};
+type ContentText = { type: "text"; text: string };
+type ClaudeContent = ContentThinking | ContentToolUse | ContentText;
+
+type ClaudeUsage = {
+  input_tokens?: number;
+  output_tokens?: number;
+  cache_read_input_tokens?: number;
+  cache_creation_input_tokens?: number;
+  cache_creation?: Record<string, unknown>;
+  service_tier?: string;
+  server_tool_use?: Record<string, unknown>;
+};
+
+type ClaudeEventAssistant = {
+  type: "assistant";
+  message: {
+    role: "assistant";
+    content: ClaudeContent[];
+    usage?: ClaudeUsage;
+  };
+};
+
+type ClaudeToolUseResult = {
+  stdout?: string;
+  stderr?: string;
+  is_error?: boolean;
+  interrupted?: boolean;
+  type?: "text";
+  file?: { filePath: string; numLines?: number; startLine?: number; totalLines?: number };
+  filenames?: string[];
+  numFiles?: number;
+};
+
+type ClaudeEventUser = {
+  type: "user";
+  message?: Record<string, unknown>;
+  tool_use_result?: ClaudeToolUseResult;
+};
+
+type ClaudeEventResult = {
+  type: "result";
+  subtype: "success" | "failure";
+  result: string;
+  is_error?: boolean;
+  total_cost_usd?: number;
+  usage?: ClaudeUsage;
+  duration_ms?: number;
+  duration_api_ms?: number;
+  num_turns?: number;
+};
 
 async function streamClaudeCodeOutput(
   runner: DockerRunner,
@@ -420,7 +478,7 @@ async function streamClaudeCodeOutput(
   apiKey: string,
 ): Promise<string> {
   console.log(`Running Claude Code agent with command: ${command}`);
-  const envCommand = `ANTHROPIC_API_KEY="${apiKey}" ${command}`;
+  const envCommand = `IS_SANDBOX=1 ANTHROPIC_API_KEY="${apiKey}" ${command}`;
   const stream = runner.streamBashCommand(envCommand, { cwd: workingDir });
   let finalMessage = "";
   let buffered = "";
@@ -461,34 +519,127 @@ function processClaudeCodeLine(line: string): string | null {
 function logClaudeCodeEvent(event: ClaudeCodeEvent) {
   switch (event.type) {
     case "system":
-      console.log(prefix(), `system event: ${event.subtype}`);
+      console.log(
+        prefix(),
+        `initialized claude-code session (model: ${event.model})`,
+      );
+      if (event.tools && event.tools.length > 0) {
+        console.log(prefix(), `tools: ${event.tools.join(", ")}`);
+      }
       break;
     case "assistant": {
       for (const content of event.message.content) {
         if (content.type === "text") {
-          console.log(
-            prefix(),
-            `assistant: ${content.text.substring(0, 100)}${content.text.length > 100 ? "..." : ""}`,
-          );
+          console.log(prefix(), `assistant:\n${truncateClaudeOutput(content.text)}`);
+        } else if (content.type === "thinking") {
+          console.log(prefix(), `thinking:\n${truncateClaudeOutput(content.thinking)}`);
         } else if (content.type === "tool_use") {
-          console.log(prefix(), `tool used: ${content.name}`);
+          console.log(prefix(), `tool use: ${content.name}`);
+          logClaudeToolInput(content.name, content.input);
         }
       }
       break;
     }
     case "user":
+      if (event.tool_use_result) {
+        logClaudeToolResult(event.tool_use_result);
+      }
       break;
     case "result":
-      if (event.is_error) {
-        console.log(prefix(), "execution failed");
-      } else {
-        console.log(prefix(), "execution completed");
-      }
+      logClaudeResult(event);
       break;
     default:
       console.log(lineToString(event));
       break;
   }
+}
+
+function logClaudeToolInput(name: string, input: Record<string, unknown>) {
+  const command = typeof input.command === "string" ? input.command : null;
+  const filePath = typeof input.file_path === "string" ? input.file_path : null;
+  const pattern = typeof input.pattern === "string" ? input.pattern : null;
+  if (name === "Bash" && command) {
+    console.log(prefix(), `  command: ${command}`);
+    return;
+  }
+  if (["Read", "Edit", "Write", "NotebookEdit"].includes(name) && filePath) {
+    console.log(prefix(), `  file: ${filePath}`);
+    return;
+  }
+  if (name === "Grep" && pattern) {
+    console.log(prefix(), `  pattern: ${pattern}`);
+    return;
+  }
+  if (name === "Glob" && pattern) {
+    console.log(prefix(), `  glob: ${pattern}`);
+    return;
+  }
+  const summary = truncateClaudeOutput(JSON.stringify(input));
+  if (summary.length > 0) {
+    console.log(prefix(), `  input: ${summary}`);
+  }
+}
+
+function logClaudeToolResult(result: ClaudeToolUseResult) {
+  const hasStdout = typeof result.stdout === "string" && result.stdout.length > 0;
+  const hasStderr = typeof result.stderr === "string" && result.stderr.length > 0;
+  if (hasStdout || hasStderr || result.is_error !== undefined || result.interrupted !== undefined) {
+    if (hasStdout) {
+      console.log(prefix(), "command output:\n" + truncateClaudeOutput(result.stdout ?? ""));
+    }
+    if (hasStderr) {
+      console.log(prefix(), "command stderr:\n" + truncateClaudeOutput(result.stderr ?? ""));
+    }
+    if (result.is_error) {
+      console.log(prefix(), "command failed");
+    }
+    if (result.interrupted) {
+      console.log(prefix(), "command interrupted");
+    }
+    return;
+  }
+  if (result.file?.filePath) {
+    const lines = result.file.numLines ?? result.file.totalLines;
+    const linesLabel = lines !== undefined ? ` (${lines} lines)` : "";
+    console.log(prefix(), `read file ${result.file.filePath}${linesLabel}`);
+    return;
+  }
+  if (result.filenames || result.numFiles !== undefined) {
+    const count = result.numFiles ?? result.filenames?.length ?? 0;
+    const numLines = result.file?.numLines ?? result.file?.totalLines;
+    const linesLabel = numLines !== undefined ? ` (${numLines} lines)` : "";
+    const label = result.filenames && result.filenames.length > 0
+      ? ` (${result.filenames.join(", ")})`
+      : "";
+    console.log(prefix(), `found ${count} files${label}${linesLabel}`);
+    return;
+  }
+  console.log(prefix(), "tool execution completed");
+}
+
+function logClaudeResult(event: ClaudeEventResult) {
+  const status = event.subtype === "success" && !event.is_error ? "completed" : "failed";
+  console.log(prefix(), `session ${status}`);
+  if (typeof event.duration_ms === "number") {
+    console.log(prefix(), `duration: ${event.duration_ms}ms`);
+  }
+  if (typeof event.total_cost_usd === "number") {
+    console.log(prefix(), `cost: $${event.total_cost_usd.toFixed(6)}`);
+  }
+  if (event.usage) {
+    const inputTokens = event.usage.input_tokens ?? 0;
+    const outputTokens = event.usage.output_tokens ?? 0;
+    const cacheTokens = event.usage.cache_read_input_tokens ?? 0;
+    console.log(
+      prefix(),
+      `tokens: ${inputTokens} input (cached: ${cacheTokens}), ${outputTokens} output`,
+    );
+  }
+}
+
+function truncateClaudeOutput(text: string, max = 8192) {
+  if (text.length <= max) return text;
+  return `${text.slice(0, max)}...`;
 }
 
 function lineToString(value: unknown) {

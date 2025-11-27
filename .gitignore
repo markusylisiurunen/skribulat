@@ -1,3 +1,4 @@
 .env
 .env.secret
+.skribulat/issues/
 .skribulat/patches/
