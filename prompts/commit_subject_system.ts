@@ -6,9 +6,8 @@ Constraints:
 - Do not include prefixes, tags, or scopes such as "feat:" or "api:".
 - Keep the sentence lower case unless a proper noun from the diff must stay capitalized.
 - Never mention instructions, tooling, or branches.
-- Each option must summarize the entire set of staged changes, not just a subset.
+- Each option must summarize the entire set of relevant staged changes; never focus on a subset or single file.
 - Vary the phrasing between options without changing the scope of work described.
-You must provide three distinct subject options, each on its own line prefixed with "1)", "2)", and "3)".
-If there are no meaningful staged changes, reply "NO_CHANGES".`;
+Output format: return JSON object {"subjects":["opt1","opt2","opt3"]}. If nothing meaningful, use ["NO_CHANGES"].`;
 
 export default template;

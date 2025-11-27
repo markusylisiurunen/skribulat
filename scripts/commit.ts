@@ -52,6 +52,33 @@ async function collectDiffs(repoPath: string): Promise<CollectedDiffs> {
   };
 }
 
+function parseSubjectsFromJson(completion: string): string[] {
+  const jsonText = completion.trim();
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(jsonText);
+  } catch (error) {
+    throw new Error(
+      `Model response is not valid JSON: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+  let subjects: unknown;
+  if (Array.isArray(parsed)) {
+    subjects = parsed;
+  } else if (parsed && typeof parsed === "object" && "subjects" in parsed) {
+    subjects = (parsed as Record<string, unknown>).subjects;
+  } else {
+    throw new Error("Model JSON response must be an array or contain a 'subjects' array.");
+  }
+  if (!Array.isArray(subjects)) {
+    throw new Error("Model JSON response 'subjects' must be an array.");
+  }
+  return subjects
+    .filter((item): item is string => typeof item === "string")
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+}
+
 function sanitizeSubject(subject: string) {
   const trimmed = subject.trim();
   if (!trimmed) {
@@ -91,31 +118,26 @@ async function generateCommitSubject(diffs: CollectedDiffs, extraInstructions?: 
     model: GENERATION_MODEL,
     prompt,
     reasoningMaxTokens: 128,
+    responseFormat: { type: "json_object" },
     systemInstructions,
     temperature: 0.2,
   });
-  const lines = completion
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0);
-  const uniqueSanitized = new Map<string, string>();
-  for (const line of lines) {
-    if (line.toUpperCase() === "NO_CHANGES") {
+  const candidates = parseSubjectsFromJson(completion);
+  const results: string[] = [];
+  for (const candidate of candidates) {
+    if (candidate.toUpperCase() === "NO_CHANGES") {
       continue;
     }
     try {
-      const match = line.match(/^(?:([0-9]+)[\).\s]+)?(.+)$/);
-      const content = match ? match[2].trim() : line;
-      const sanitized = sanitizeSubject(content);
-      if (!uniqueSanitized.has(sanitized)) {
-        uniqueSanitized.set(sanitized, line);
+      const sanitized = sanitizeSubject(candidate);
+      if (!results.includes(sanitized)) {
+        results.push(sanitized);
       }
-      if (uniqueSanitized.size >= 3) break;
+      if (results.length >= 3) break;
     } catch {
       continue;
     }
   }
-  const results = Array.from(uniqueSanitized.keys());
   if (results.length === 0) {
     throw new Error("Failed to generate commit message proposals.");
   }

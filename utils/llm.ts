@@ -11,6 +11,7 @@ type GenerateCompletionArgs = {
   reasoningMaxTokens?: number;
   systemInstructions?: string;
   temperature?: number;
+  responseFormat?: { type: string };
 };
 
 export async function generateCompletion(args: GenerateCompletionArgs) {
@@ -49,6 +50,7 @@ export async function generateCompletion(args: GenerateCompletionArgs) {
       messages,
       model: args.model,
       reasoning,
+      response_format: args.responseFormat,
       temperature: args.temperature,
       provider: args.provider
         ? { order: args.provider.order, allow_fallbacks: args.provider.allowFallbacks }

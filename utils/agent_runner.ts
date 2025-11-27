@@ -480,34 +480,48 @@ async function streamClaudeCodeOutput(
   console.log(`Running Claude Code agent with command: ${command}`);
   const envCommand = `IS_SANDBOX=1 ANTHROPIC_API_KEY="${apiKey}" ${command}`;
   const stream = runner.streamBashCommand(envCommand, { cwd: workingDir });
-  let finalMessage = "";
+  let finalResultMessage = "";
+  let lastAssistantMessage = "";
   let buffered = "";
   for await (const chunk of stream) {
     buffered += chunk.data;
     const lines = buffered.split("\n");
     buffered = lines.pop() ?? "";
     for (const line of lines) {
-      const result = processClaudeCodeLine(line);
-      if (result) finalMessage = result;
+      const parsed = processClaudeCodeLine(line);
+      if (!parsed) continue;
+      if (parsed.result) finalResultMessage = parsed.result;
+      if (parsed.assistantText) lastAssistantMessage = parsed.assistantText;
     }
   }
   if (buffered.trim().length > 0) {
-    const result = processClaudeCodeLine(buffered);
-    if (result) finalMessage = result;
+    const parsed = processClaudeCodeLine(buffered);
+    if (parsed?.result) finalResultMessage = parsed.result;
+    if (parsed?.assistantText) lastAssistantMessage = parsed.assistantText;
   }
+  const finalMessage = finalResultMessage || lastAssistantMessage;
   if (finalMessage.trim().length === 0) {
     throw new Error("Claude Code agent did not return a final message.");
   }
   return finalMessage.trim();
 }
 
-function processClaudeCodeLine(line: string): string | null {
+type ClaudeProcessedEvent = { result?: string; assistantText?: string };
+
+function processClaudeCodeLine(line: string): ClaudeProcessedEvent | null {
   if (line.trim().length === 0) return null;
   try {
     const parsed = JSON.parse(line) as ClaudeCodeEvent;
     logClaudeCodeEvent(parsed);
     if (parsed.type === "result" && !parsed.is_error && parsed.result) {
-      return parsed.result;
+      return { result: parsed.result };
+    }
+    if (parsed.type === "assistant") {
+      // Capture the last assistant text so we can fall back when no explicit result event arrives.
+      const textContent = parsed.message.content.find((c) => c.type === "text");
+      if (textContent && "text" in textContent && textContent.text) {
+        return { assistantText: textContent.text };
+      }
     }
     return null;
   } catch {
