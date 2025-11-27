@@ -336,19 +336,8 @@ export class GitHubClient {
     return { issue, comments };
   }
 
-  async addIssueComment(issueId: string, body: string) {
-    await this.graphql(
-      `mutation AddIssueComment($issueId: ID!, $body: String!) {
-        addComment(input: { subjectId: $issueId, body: $body }) {
-          commentEdge {
-            node {
-              id
-            }
-          }
-        }
-      }`,
-      { issueId, body },
-    ) as AddIssueCommentResult;
+  async addIssueComment(owner: string, repo: string, issueNumber: number, body: string) {
+    await this.octokit.rest.issues.createComment({ owner, repo, issue_number: issueNumber, body });
   }
 
   async listOpenPullRequests(
@@ -606,7 +595,11 @@ export class GitHubIssueProvider implements IssueProvider {
   }
 
   async addComment(issueId: string, body: string): Promise<void> {
-    await this.#client.addIssueComment(issueId, body);
+    const issueNumber = Number(issueId);
+    if (!Number.isFinite(issueNumber)) {
+      throw new Error(`GitHub issues must be referenced by numeric id; received: ${issueId}`);
+    }
+    await this.#client.addIssueComment(this.#owner, this.#repo, issueNumber, body);
   }
 
   async createPullRequest(
