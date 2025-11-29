@@ -136,13 +136,18 @@ export function renderDirectoryStructure(entries: FileEntry[]): string {
 
 export function buildRepoFileTree(): string {
   const repoRoot = resolveRepoRoot();
+  const cwd = Deno.cwd();
   const paths = collectGitVisibleFiles(repoRoot);
   if (paths.length === 0) return "";
   const byDirectory = new Map<string, string[]>();
-  for (const path of paths) {
-    const dir = posix.dirname(path);
+  for (const repoRelPath of paths) {
+    const absolutePath = join(repoRoot, repoRelPath);
+    const cwdRelPath = relative(cwd, absolutePath);
+    if (!isWithinCwd(cwdRelPath)) continue;
+    const cwdRelPosix = toPosixPath(cwdRelPath);
+    const dir = posix.dirname(cwdRelPosix);
     const directory = dir === "." ? "." : dir;
-    const fileName = posix.basename(path);
+    const fileName = posix.basename(cwdRelPosix);
     const list = byDirectory.get(directory) ?? [];
     list.push(fileName);
     byDirectory.set(directory, list);

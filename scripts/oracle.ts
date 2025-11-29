@@ -605,10 +605,10 @@ async function buildOracleMessages(state: SessionState) {
   const fileTreeBlock = buildFileTreeBlock();
   state.messages.forEach((msg, index) => {
     const parts: string[] = [];
+    parts.push(msg.prompt);
     if (index === 0 && fileTreeBlock) {
       parts.push(fileTreeBlock);
     }
-    parts.push(msg.prompt);
     if (msg.attachments.length > 0) {
       for (const attachment of msg.attachments) {
         parts.push(`<file path="${attachment.path}">\n${attachment.content}\n</file>`);
