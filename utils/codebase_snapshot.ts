@@ -134,6 +134,31 @@ export function renderDirectoryStructure(entries: FileEntry[]): string {
   return lines.join("\n");
 }
 
+export function buildRepoFileTree(): string {
+  const repoRoot = resolveRepoRoot();
+  const paths = collectGitVisibleFiles(repoRoot);
+  if (paths.length === 0) return "";
+  const byDirectory = new Map<string, string[]>();
+  for (const path of paths) {
+    const dir = posix.dirname(path);
+    const directory = dir === "." ? "." : dir;
+    const fileName = posix.basename(path);
+    const list = byDirectory.get(directory) ?? [];
+    list.push(fileName);
+    byDirectory.set(directory, list);
+  }
+  const lines: string[] = [];
+  for (
+    const [directory, files] of Array.from(byDirectory.entries()).sort((a, b) =>
+      a[0].localeCompare(b[0])
+    )
+  ) {
+    files.sort((a, b) => a.localeCompare(b));
+    lines.push(`${directory}: ${files.join(" ")}`);
+  }
+  return lines.join("\n");
+}
+
 type FileBlockStats = {
   content: string;
   totalCharacters: number;

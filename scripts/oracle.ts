@@ -1,6 +1,7 @@
 import { basename, fromFileUrl, join, resolve as resolvePath } from "@std/path";
 import {
   buildFilteredFileEntries,
+  buildRepoFileTree,
   countLines,
   type FileEntry,
 } from "../utils/codebase_snapshot.ts";
@@ -590,13 +591,23 @@ async function buildOracleSystemPrompt(): Promise<string> {
   return prompt.trim();
 }
 
+function buildFileTreeBlock(): string {
+  const tree = buildRepoFileTree();
+  if (!tree) return "";
+  return `<file_tree>\n${tree}\n</file_tree>`;
+}
+
 async function buildOracleMessages(state: SessionState) {
   const systemContent = await buildOracleSystemPrompt();
   const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
     { role: "system", content: systemContent },
   ];
-  state.messages.forEach((msg) => {
+  const fileTreeBlock = buildFileTreeBlock();
+  state.messages.forEach((msg, index) => {
     const parts: string[] = [];
+    if (index === 0 && fileTreeBlock) {
+      parts.push(fileTreeBlock);
+    }
     parts.push(msg.prompt);
     if (msg.attachments.length > 0) {
       for (const attachment of msg.attachments) {
