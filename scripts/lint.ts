@@ -81,7 +81,7 @@ const MODEL_CONFIG: Record<
   "gemini-2.5-flash-lite": { maxTokens: 16384, reasoningEffort: "low" },
   "gemini-2.5-flash": { maxTokens: 16384, reasoningEffort: "low" },
   "claude-haiku-4.5": { maxTokens: 16384, reasoningEffort: "low" },
-  "gpt-5.1": { maxTokens: 16384, reasoningEffort: "minimal" },
+  "gpt-5.1": { maxTokens: 16384, reasoningEffort: "none" },
 };
 
 const DEFAULT_MODEL: ModelAlias = "gemini-2.5-flash-lite";
