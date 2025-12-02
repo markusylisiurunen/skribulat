@@ -8,6 +8,9 @@ import {
 import { CliError, printCliError } from "../utils/errors.ts";
 import { resolveDefaultBranch, resolveRepoRoot, runGitSync } from "../utils/git.ts";
 import {
+  buildMessage,
+  buildMultipartMessage,
+  type ChatMessage,
   type CompletionUsage,
   generateCompletionWithUsage,
   unwrapJsonFence,
@@ -401,7 +404,7 @@ async function buildSystemPrompt(): Promise<string> {
   return prompt.trim();
 }
 
-function buildUserPromptPrefix(rules: Rule[]): string {
+function buildRulesPrefix(rules: Rule[]): string {
   const parts = ["Rules to check:"];
   for (const rule of rules) {
     parts.push(`<rule name="${rule.name}">`);
@@ -412,13 +415,13 @@ function buildUserPromptPrefix(rules: Rule[]): string {
   return parts.join("\n");
 }
 
-function buildUserPrompt(path: string, content: string, rules: Rule[]): string {
-  const parts = [`File: ${path}`, ""];
-  parts.push(buildUserPromptPrefix(rules));
-  parts.push(`<file path="${path}">`);
-  parts.push(content);
-  parts.push("</file>");
-  return parts.join("\n");
+function buildUserMessage(path: string, content: string, rules: Rule[]): ChatMessage {
+  const rulesPrefix = buildRulesPrefix(rules);
+  const filePart = [`File: ${path}`, "", `<file path="${path}">`, content, "</file>"].join("\n");
+  return buildMultipartMessage("user", [
+    { text: rulesPrefix, cache: true },
+    { text: filePart },
+  ]);
 }
 
 function computePrefixKey(rules: Rule[]): string {
@@ -456,8 +459,8 @@ async function lintFile(
     maxTokens: cfg.maxTokens,
     model: MODEL_ALIASES[model],
     messages: [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: buildUserPrompt(entry.cwdRelativePosix, content, rules) },
+      buildMessage("system", systemPrompt, true),
+      buildUserMessage(entry.cwdRelativePosix, content, rules),
     ],
     reasoningEffort: effort ?? cfg.reasoningEffort,
     responseFormat: { type: "json_object" },

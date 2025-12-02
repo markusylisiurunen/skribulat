@@ -1,6 +1,32 @@
-type ChatMessage = { role: "system" | "user" | "assistant"; content: string };
+type TextPart = { type: "text"; text: string; cache_control?: { type: "ephemeral" } };
+type ContentPart = TextPart;
+
+type ChatMessageSimple = { role: "system" | "user" | "assistant"; content: string };
+type ChatMessageMultipart = { role: "system" | "user" | "assistant"; content: ContentPart[] };
+export type ChatMessage = ChatMessageSimple | ChatMessageMultipart;
 
 const SESSION_ID = crypto.randomUUID();
+
+export function buildMessage(
+  role: "system" | "user" | "assistant",
+  text: string,
+  cache?: boolean,
+): ChatMessage {
+  if (!cache) return { role, content: text };
+  return { role, content: [{ type: "text", text, cache_control: { type: "ephemeral" } }] };
+}
+
+export function buildMultipartMessage(
+  role: "system" | "user" | "assistant",
+  parts: Array<{ text: string; cache?: boolean }>,
+): ChatMessage {
+  const content: ContentPart[] = parts.map((p) =>
+    p.cache
+      ? { type: "text", text: p.text, cache_control: { type: "ephemeral" } }
+      : { type: "text", text: p.text }
+  );
+  return { role, content };
+}
 
 export type CompletionUsage = {
   promptTokens: number;
