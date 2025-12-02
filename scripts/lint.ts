@@ -401,19 +401,28 @@ async function buildSystemPrompt(): Promise<string> {
   return prompt.trim();
 }
 
-function buildUserPrompt(path: string, content: string, rules: Rule[]): string {
-  const parts = [`File: ${path}`, ""];
-  parts.push("Rules to check:");
+function buildUserPromptPrefix(rules: Rule[]): string {
+  const parts = ["Rules to check:"];
   for (const rule of rules) {
     parts.push(`<rule name="${rule.name}">`);
     parts.push(rule.description.trim());
     parts.push("</rule>");
   }
   parts.push("");
+  return parts.join("\n");
+}
+
+function buildUserPrompt(path: string, content: string, rules: Rule[]): string {
+  const parts = [`File: ${path}`, ""];
+  parts.push(buildUserPromptPrefix(rules));
   parts.push(`<file path="${path}">`);
   parts.push(content);
   parts.push("</file>");
   return parts.join("\n");
+}
+
+function computePrefixKey(rules: Rule[]): string {
+  return rules.map((r) => r.name).sort().join("|");
 }
 
 async function lintFile(
@@ -565,8 +574,7 @@ async function processFilesWithWorkerPool(
   effort?: "none" | "minimal" | "low" | "medium" | "high",
 ): Promise<{ results: LintResult[]; usage: AggregatedUsage }> {
   const results: LintResult[] = [];
-  const queue = [...filesWithRules];
-  const total = queue.length;
+  const total = filesWithRules.length;
   let completed = 0;
   const usage: AggregatedUsage = {
     inputTokens: 0,
@@ -585,9 +593,7 @@ async function processFilesWithWorkerPool(
     );
   };
 
-  const processOne = async () => {
-    const item = queue.shift();
-    if (!item) return;
+  const processItem = async (item: FileWithRules) => {
     const result = await lintFile(item, model, systemPrompt, effort);
     results.push(result);
     usage.inputTokens += result.usage.promptTokens;
@@ -600,14 +606,47 @@ async function processFilesWithWorkerPool(
 
   updateProgress();
 
-  // Warm up cache: 4 calls first, then full parallelism
-  if (queue.length > 0) {
-    await Promise.all([processOne(), processOne(), processOne(), processOne()]);
-  }
+  // Track prefix states for cache warming
+  const warmedPrefixes = new Set<string>();
+  const warmingPrefixes = new Set<string>();
+  const queue = [...filesWithRules];
+
+  const tryPickItem = (): FileWithRules | undefined => {
+    // First pass: prefer items from already-warmed prefixes
+    for (let i = 0; i < queue.length; i++) {
+      const key = computePrefixKey(queue[i].rules);
+      if (warmedPrefixes.has(key)) {
+        return queue.splice(i, 1)[0];
+      }
+    }
+    // Second pass: pick item from a prefix not currently warming
+    for (let i = 0; i < queue.length; i++) {
+      const key = computePrefixKey(queue[i].rules);
+      if (!warmingPrefixes.has(key)) {
+        return queue.splice(i, 1)[0];
+      }
+    }
+    return undefined;
+  };
 
   const worker = async () => {
     while (queue.length > 0) {
-      await processOne();
+      const item = tryPickItem();
+      if (!item) {
+        // All remaining items have prefixes currently warming; wait and retry
+        await new Promise((r) => setTimeout(r, 10));
+        continue;
+      }
+      const key = computePrefixKey(item.rules);
+      const isWarming = !warmedPrefixes.has(key);
+      if (isWarming) warmingPrefixes.add(key);
+
+      await processItem(item);
+
+      if (isWarming) {
+        warmingPrefixes.delete(key);
+        warmedPrefixes.add(key);
+      }
     }
   };
 
