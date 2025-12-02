@@ -662,22 +662,29 @@ export async function runLint(argv: string[]) {
       .flatMap((r) => r.violations.map((v) => ({ path: r.path, ...v })))
       .sort((a, b) => a.path.localeCompare(b.path) || a.line - b.line);
 
-    const violationLines = allViolations.map(
-      (v) => `${v.path}:${v.line}: ${v.rule}: ${v.message}`,
-    );
-    const fileCount = new Set(allViolations.map((v) => v.path)).size;
+    const fileToViolations = new Map<string, Violation[]>();
+    for (const v of allViolations) {
+      const existing = fileToViolations.get(v.path) ?? [];
+      existing.push({ line: v.line, rule: v.rule, message: v.message });
+      fileToViolations.set(v.path, existing);
+    }
 
-    if (violationLines.length > 0) {
+    const fileCount = fileToViolations.size;
+
+    if (fileCount > 0) {
       console.log("");
-      for (const line of violationLines) {
-        console.log(line);
+      for (const [path, violations] of fileToViolations.entries()) {
+        console.log(path);
+        for (const v of violations) {
+          console.log(`  ${v.line}: ${v.rule}: ${v.message}`);
+        }
+        console.log("");
       }
-      console.log("");
     } else {
       console.log("\nNo violations found.\n");
     }
 
-    const issueCount = violationLines.length;
+    const issueCount = allViolations.length;
     const summary = [
       `${issueCount} issue${issueCount !== 1 ? "s" : ""}, ${fileCount} file${
         fileCount !== 1 ? "s" : ""

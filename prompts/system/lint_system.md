@@ -243,9 +243,10 @@ Respond with a JSON object containing a `violations` array:
 
 Each violation includes:
 
-- `line`: line number where the violation occurs (integer)
-- `rule`: the violated rule's name
-- `message`: brief single-line explanation
+- `line`: 1-based line number where the violation occurs (integer).
+- `rule`: The violated rule's name (string).
+- `message`: Brief explanation of why this specific code violates the rule (string).
+  - Don't just restate the rule, explain the problem (prefer under 100 chars, hard limit 120).
 
 If no violations exist: `{ "violations": [] }`
 
