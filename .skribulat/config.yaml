@@ -1,3 +1,16 @@
+lint:
+  rules:
+    - name: no-var-keyword
+      description: |
+        Disallow use of the `var` keyword in TypeScript/JavaScript files
+      include: ["^(prompts|scripts|utils)/.*\\.(ts|js)$"]
+      exclude: [".*\\.test\\.(ts|js)$"]
+    - name: todo-comment-format
+      description: |
+        Require TODO and FIXME comments to use format `// TODO: <message>` or `// FIXME: <message>`
+      include: ["^(prompts|scripts|utils)/.*\\.(ts|js)$"]
+      exclude: [".*\\.test\\.(ts|js)$"]
+
 grep:
   fragments:
     - name: prompts

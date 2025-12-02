@@ -49,6 +49,18 @@ export type OracleConfig = {
   defaultModel?: string;
 };
 
+export type LintRuleConfig = {
+  name: string;
+  description: string;
+  include: string[];
+  exclude?: string[];
+};
+
+export type LintConfig = {
+  rules?: LintRuleConfig[];
+  defaultModel?: string;
+};
+
 export type IssuesConfig = {
   backend?: "github" | "fs";
   path?: string;
@@ -57,6 +69,7 @@ export type IssuesConfig = {
 export type ProjectConfig = {
   agent?: AgentToolConfig;
   issues?: IssuesConfig;
+  lint?: LintConfig;
   planIssue?: PlanIssueConfig;
   grep?: GrepConfig;
   oracle?: OracleConfig;
@@ -101,6 +114,10 @@ function parseYaml(contents: string): ProjectConfig {
   const oracle = oracleRaw && typeof oracleRaw === "object"
     ? normalizeOracleConfig(oracleRaw as Record<string, unknown>)
     : undefined;
+  const lintRaw = root["lint"];
+  const lint = lintRaw && typeof lintRaw === "object"
+    ? normalizeLintConfig(lintRaw as Record<string, unknown>)
+    : undefined;
   const workOnIssueRaw = root["work_on_issue"];
   const workOnIssue = workOnIssueRaw && typeof workOnIssueRaw === "object"
     ? normalizeAgentSection(workOnIssueRaw as Record<string, unknown>)
@@ -112,6 +129,7 @@ function parseYaml(contents: string): ProjectConfig {
   return {
     agent,
     issues,
+    lint,
     planIssue,
     grep,
     oracle,
@@ -268,6 +286,38 @@ function normalizeOracleConfig(raw: Record<string, unknown>): OracleConfig {
     }
     if (fragments.length > 0) {
       config.fragments = fragments;
+    }
+  }
+
+  return config;
+}
+
+function normalizeLintConfig(raw: Record<string, unknown>): LintConfig {
+  const config: LintConfig = {};
+  const defaultModelRaw = raw["default_model"];
+  if (typeof defaultModelRaw === "string" && defaultModelRaw.trim().length > 0) {
+    config.defaultModel = defaultModelRaw.trim();
+  }
+
+  const rulesRaw = raw["rules"];
+  if (Array.isArray(rulesRaw)) {
+    const rules: LintRuleConfig[] = [];
+    for (const entry of rulesRaw) {
+      if (!entry || typeof entry !== "object") continue;
+      const record = entry as Record<string, unknown>;
+      const nameRaw = record["name"];
+      const descriptionRaw = record["description"];
+      const includeRaw = record["include"];
+      const excludeRaw = record["exclude"];
+      const name = typeof nameRaw === "string" ? nameRaw.trim() : "";
+      const description = typeof descriptionRaw === "string" ? descriptionRaw.trim() : "";
+      const include = toStringArray(includeRaw);
+      const exclude = toStringArray(excludeRaw);
+      if (!name || !description || include.length === 0) continue;
+      rules.push({ name, description, include, exclude: exclude.length > 0 ? exclude : undefined });
+    }
+    if (rules.length > 0) {
+      config.rules = rules;
     }
   }
 

@@ -1,13 +1,14 @@
 import { runBuildAgentRunner } from "./scripts/build_agent_runner.ts";
 import { runCommit } from "./scripts/commit.ts";
 import { runExec } from "./scripts/exec.ts";
-import { runMarkdownCodebase } from "./scripts/markdown_codebase.ts";
-import { runPlanIssue } from "./scripts/plan_issue.ts";
-import { runPlanAndWorkOnIssue } from "./scripts/plan_and_work_on_issue.ts";
-import { runReview } from "./scripts/review.ts";
-import { runOracle } from "./scripts/oracle.ts";
 import { runGrep } from "./scripts/grep.ts";
+import { runLint } from "./scripts/lint.ts";
+import { runMarkdownCodebase } from "./scripts/markdown_codebase.ts";
+import { runOracle } from "./scripts/oracle.ts";
+import { runPlanAndWorkOnIssue } from "./scripts/plan_and_work_on_issue.ts";
+import { runPlanIssue } from "./scripts/plan_issue.ts";
 import { runPrompt } from "./scripts/prompt.ts";
+import { runReview } from "./scripts/review.ts";
 import { runWorkOnIssue } from "./scripts/work_on_issue.ts";
 import { runWorkOnPr } from "./scripts/work_on_pr.ts";
 import { CliError, printCliError } from "./utils/errors.ts";
@@ -18,13 +19,14 @@ const COMMANDS: Record<string, CommandHandler> = {
   "build-agent-runner": runBuildAgentRunner,
   "commit": runCommit,
   "exec": runExec,
-  "markdown-codebase": runMarkdownCodebase,
-  "plan-issue": runPlanIssue,
-  "plan-and-work-on-issue": runPlanAndWorkOnIssue,
-  "review": runReview,
-  "oracle": runOracle,
   "grep": runGrep,
+  "lint": runLint,
+  "markdown-codebase": runMarkdownCodebase,
+  "oracle": runOracle,
+  "plan-and-work-on-issue": runPlanAndWorkOnIssue,
+  "plan-issue": runPlanIssue,
   "prompt": runPrompt,
+  "review": runReview,
   "work-on-issue": runWorkOnIssue,
   "work-on-pr": runWorkOnPr,
 };
@@ -36,11 +38,12 @@ function printUsage() {
       `  build-agent-runner      Build a Docker image for running local agents.\n` +
       `  commit                  Generate and apply AI-assisted commit messages.\n` +
       `  exec                    Propose and optionally run an AI-generated shell command.\n` +
-      `  markdown-codebase       Emit a markdown snapshot of the tracked files under the current directory.\n` +
-      `  plan-issue              Analyze an issue and post an implementation plan.\n` +
-      `  plan-and-work-on-issue  Run planning and implementation for an issue sequentially.\n` +
-      `  oracle                  Ask questions, optionally detached, with file attachments.\n` +
       `  grep                    Run a concise, fragment-aware code grep via the model.\n` +
+      `  lint                    Run AI-powered lint rules against matching files.\n` +
+      `  markdown-codebase       Emit a markdown snapshot of the tracked files under the current directory.\n` +
+      `  oracle                  Ask questions, optionally detached, with file attachments.\n` +
+      `  plan-and-work-on-issue  Run planning and implementation for an issue sequentially.\n` +
+      `  plan-issue              Analyze an issue and post an implementation plan.\n` +
       `  prompt                  Print a stored prompt template by name.\n` +
       `  review                  Generate a code review prompt from a git diff.\n` +
       `  work-on-issue           Spin up an agent to implement an issue branch and PR.\n` +

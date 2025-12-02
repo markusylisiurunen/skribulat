@@ -38,6 +38,13 @@ Skribulat is a Deno-based command-line toolkit for AI-assisted repo workflows.
   gemini-2.5-flash-lite (default), gemini-2.5-flash, gemini-3-pro, gpt-5.1, qwen3-32b.
   `skribulat grep fragments` lists configured fragments, their splits (with file/line/char counts),
   and file/line/token stats (limited to 50k lines or 1M chars per split call).
+- `lint` – AI-powered linter with configurable rules. Rules are defined in `.skribulat/config.yaml`
+  under `lint.rules`, each with `name`, `description`, `include` regex patterns, and optional
+  `exclude`. For each file, collects all matching rules and makes a single LLM call to check them.
+  Supports `-r/--rule <name>` to run specific rules (repeatable), `-i/--include` and `-e/--exclude`
+  for ad-hoc file filtering, `--dry-run` to list files and matching rules without calling the model,
+  and `-m/--model` for model override. `skribulat lint rules` lists configured rules with file
+  counts and token stats. Per-file limits: 5k lines or 100k chars.
 - `oracle` – ask free-form questions with optional file attachments; accepts `-p` or piped stdin
   when `-p` is omitted. You can attach files via fragments configured under `oracle.fragments`
   (`-f/--fragment`) and/or ad-hoc regex filters (`-i/--include`, `-e/--exclude`); ad-hoc filters do
@@ -124,6 +131,17 @@ oracle:
       exclude: ["\\.test\\.ts$"]
     - name: frontend
       include: ["^apps/web/"]
+
+lint:
+  default_model: gpt-5-mini
+  rules:
+    - name: no-console-log
+      description: Disallow console.log in production code
+      include: ["^src/.*\\.ts$"]
+      exclude: ["\\.test\\.ts$"]
+    - name: require-error-handling
+      description: Async functions should have try-catch or .catch() error handling
+      include: ["^services/.*\\.ts$"]
 
 agent:
   tool: codex
