@@ -63,11 +63,11 @@ type LintResult = {
 const WORKER_POOL_SIZE = 16;
 
 const MODEL_ALIASES = {
-  "gpt-5-nano": "openai/gpt-5-nano",
-  "gemini-2.5-flash-lite": "google/gemini-2.5-flash-lite-preview-09-2025",
   "gpt-5-mini": "openai/gpt-5-mini",
-  "claude-haiku-4.5": "anthropic/claude-haiku-4.5",
+  "gemini-2.5-flash-lite": "google/gemini-2.5-flash-lite-preview-09-2025",
   "gemini-2.5-flash": "google/gemini-2.5-flash-preview-09-2025",
+  "claude-haiku-4.5": "anthropic/claude-haiku-4.5",
+  "gpt-5.1": "openai/gpt-5.1",
 } as const;
 
 const MODEL_CONFIG: Record<
@@ -77,14 +77,14 @@ const MODEL_CONFIG: Record<
     reasoningEffort?: "none" | "minimal" | "low" | "medium" | "high";
   }
 > = {
-  "gpt-5-nano": { maxTokens: 16384, reasoningEffort: "low" },
-  "gemini-2.5-flash-lite": { maxTokens: 16384, reasoningEffort: "low" },
   "gpt-5-mini": { maxTokens: 16384, reasoningEffort: "minimal" },
-  "claude-haiku-4.5": { maxTokens: 16384, reasoningEffort: "low" },
+  "gemini-2.5-flash-lite": { maxTokens: 16384, reasoningEffort: "low" },
   "gemini-2.5-flash": { maxTokens: 16384, reasoningEffort: "low" },
+  "claude-haiku-4.5": { maxTokens: 16384, reasoningEffort: "low" },
+  "gpt-5.1": { maxTokens: 16384, reasoningEffort: "minimal" },
 };
 
-const DEFAULT_MODEL: ModelAlias = "gpt-5-mini";
+const DEFAULT_MODEL: ModelAlias = "gemini-2.5-flash-lite";
 
 const PER_FILE_LINE_LIMIT = 5_000;
 const PER_FILE_CHAR_LIMIT = 100_000;
@@ -112,7 +112,7 @@ function usage(defaultModel: ModelAlias) {
       "  -e, --exclude <regex>  Additional file exclusion (repeatable)",
       "      --changed          Only lint changed files (vs default branch + uncommitted; just uncommitted on main)",
       "      --dry-run          List files and matching rules without calling the model",
-      `  -m, --model <alias>    Model alias: gpt-5-nano | gemini-2.5-flash-lite | gpt-5-mini | claude-haiku-4.5 | gemini-2.5-flash (default ${defaultModel})`,
+      `  -m, --model <alias>    Model alias: gpt-5-mini | gemini-2.5-flash-lite | gemini-2.5-flash | claude-haiku-4.5 | gpt-5.1 (default ${defaultModel})`,
       "      --effort <level>   Override reasoning effort: none | minimal | low | medium | high",
       "  -h, --help             Show this help message",
     ].join("\n"),
@@ -243,7 +243,7 @@ function parseArgs(argv: readonly string[], defaultModel: ModelAlias): ParsedArg
       if (!value) throw new CliError(`${arg} requires a value.`);
       if (!isModelAlias(value)) {
         throw new CliError(
-          "Invalid model alias. Allowed: gpt-5-nano, gemini-2.5-flash-lite, gpt-5-mini, claude-haiku-4.5, gemini-2.5-flash.",
+          "Invalid model alias. Allowed: gpt-5-mini, gemini-2.5-flash-lite, gemini-2.5-flash, claude-haiku-4.5, gpt-5.1.",
         );
       }
       model = value;
@@ -254,7 +254,7 @@ function parseArgs(argv: readonly string[], defaultModel: ModelAlias): ParsedArg
       if (!value) throw new CliError("--model requires a value.");
       if (!isModelAlias(value)) {
         throw new CliError(
-          "Invalid model alias. Allowed: gpt-5-nano, gemini-2.5-flash-lite, gpt-5-mini, claude-haiku-4.5, gemini-2.5-flash.",
+          "Invalid model alias. Allowed: gpt-5-mini, gemini-2.5-flash-lite, gemini-2.5-flash, claude-haiku-4.5, gpt-5.1.",
         );
       }
       model = value;

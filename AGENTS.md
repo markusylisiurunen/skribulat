@@ -59,8 +59,8 @@ All scripts live under the `scripts` folder (e.g., `scripts/commit.ts`).
   single LLM call to check them. Supports `-r/--rule <name>` to run specific rules (repeatable),
   `-i/--include` and `-e/--exclude` for ad-hoc file filtering, `--dry-run` to list files and
   matching rules without calling the model, and `-m/--model` for model override (defaults to
-  `gpt-5-mini` with low reasoning effort). Running `skribulat lint rules` lists configured rules
-  with file counts/line/token stats. Per-file limits: 5k lines or 100k chars.
+  `gemini-2.5-flash-lite` with low reasoning effort). Running `skribulat lint rules` lists
+  configured rules with file counts/line/token stats. Per-file limits: 5k lines or 100k chars.
 - `plan_issue.ts`: Analyzes GitHub issues and posts comprehensive implementation plans. Supports
   `--issue <number>` or interactive selection plus optional `--agent <tool>`, `--model <name>`, and
   `--codex-auth <path>` to copy a host Codex `auth.json` into the container before running (falls
@@ -167,7 +167,8 @@ All utility files live under the `utils` folder.
   default fragment (`.*`) is disabled; otherwise, all files are searched by default. Patterns follow
   the same semantics as `-i/--include` in `oracle`. Fragment stats and searches enforce a cap of 50k
   lines or 1M chars per split call.
-- `lint.default_model`: optional model alias override for `lint` (defaults to `gpt-5-mini`).
+- `lint.default_model`: optional model alias override for `lint` (defaults to
+  `gemini-2.5-flash-lite`).
 - `lint.rules`: list of lint rules. Each rule requires `name`, `description`, and one or more
   `include` regex patterns (optional `exclude`). Example:
   ```yaml

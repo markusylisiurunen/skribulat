@@ -133,7 +133,7 @@ oracle:
       include: ["^apps/web/"]
 
 lint:
-  default_model: gpt-5-mini
+  default_model: gemini-2.5-flash-lite
   rules:
     - name: no-console-log
       description: Disallow console.log in production code
