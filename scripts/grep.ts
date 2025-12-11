@@ -64,7 +64,7 @@ const MODEL_ALIASES = {
   "gemini-2.5-flash-lite": "google/gemini-2.5-flash-lite-preview-09-2025",
   "gemini-2.5-flash": "google/gemini-2.5-flash-preview-09-2025",
   "gemini-3-pro": "google/gemini-3-pro-preview",
-  "gpt-5.1": "openai/gpt-5.1",
+  "gpt-5.2": "openai/gpt-5.2",
   "qwen3-32b": "qwen/qwen3-32b",
 } as const;
 
@@ -76,7 +76,7 @@ const MODEL_CONFIG: Record<
     provider?: { order?: string[]; allowFallbacks?: boolean };
   }
 > = {
-  "gemini-3-pro": {
+  "gemini-2.5-flash-lite": {
     maxTokens: 8192,
     reasoningEffort: "low",
   },
@@ -84,11 +84,11 @@ const MODEL_CONFIG: Record<
     maxTokens: 8192,
     reasoningEffort: "low",
   },
-  "gemini-2.5-flash-lite": {
+  "gemini-3-pro": {
     maxTokens: 8192,
     reasoningEffort: "low",
   },
-  "gpt-5.1": {
+  "gpt-5.2": {
     maxTokens: 8192,
     reasoningEffort: "none",
   },
@@ -130,7 +130,7 @@ function usage(defaultModel: ModelAlias) {
       "  -i, --include <regex>  Regex for files to include (repeatable; conflicts with -f/-a)",
       "  -e, --exclude <regex>  Regex for files to exclude (repeatable; conflicts with -f/-a)",
       "      --dry-run          List matching files with line/token counts instead of calling the model",
-      `  -m, --model <alias>    Model alias: gemini-2.5-flash-lite | gemini-2.5-flash | gemini-3-pro | gpt-5.1 | qwen3-32b (default ${defaultModel})`,
+      `  -m, --model <alias>    Model alias: gemini-2.5-flash-lite | gemini-2.5-flash | gemini-3-pro | gpt-5.2 | qwen3-32b (default ${defaultModel})`,
       "  -h, --help             Show this help message",
     ].join("\n"),
   );
@@ -231,7 +231,7 @@ function parseArgs(argv: readonly string[], defaultModel: ModelAlias): ParsedArg
       if (!value) throw new CliError(`${arg} requires a value.`);
       if (!isModelAlias(value)) {
         throw new CliError(
-          "Invalid model alias. Allowed: gemini-2.5-flash-lite, gemini-2.5-flash, gemini-3-pro, gpt-5.1, qwen3-32b.",
+          "Invalid model alias. Allowed: gemini-2.5-flash-lite, gemini-2.5-flash, gemini-3-pro, gpt-5.2, qwen3-32b.",
         );
       }
       model = value as ModelAlias;
@@ -246,7 +246,7 @@ function parseArgs(argv: readonly string[], defaultModel: ModelAlias): ParsedArg
       if (!value) throw new CliError("--model requires a value.");
       if (!isModelAlias(value)) {
         throw new CliError(
-          "Invalid model alias. Allowed: gemini-2.5-flash-lite, gemini-2.5-flash, gemini-3-pro, gpt-5.1, qwen3-32b.",
+          "Invalid model alias. Allowed: gemini-2.5-flash-lite, gemini-2.5-flash, gemini-3-pro, gpt-5.2, qwen3-32b.",
         );
       }
       model = value as ModelAlias;

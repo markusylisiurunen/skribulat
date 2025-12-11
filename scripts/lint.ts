@@ -70,7 +70,7 @@ const MODEL_ALIASES = {
   "gemini-2.5-flash-lite": "google/gemini-2.5-flash-lite-preview-09-2025",
   "gemini-2.5-flash": "google/gemini-2.5-flash-preview-09-2025",
   "claude-haiku-4.5": "anthropic/claude-haiku-4.5",
-  "gpt-5.1": "openai/gpt-5.1",
+  "gpt-5.2": "openai/gpt-5.2",
 } as const;
 
 const MODEL_CONFIG: Record<
@@ -84,7 +84,7 @@ const MODEL_CONFIG: Record<
   "gemini-2.5-flash-lite": { maxTokens: 16384, reasoningEffort: "low" },
   "gemini-2.5-flash": { maxTokens: 16384, reasoningEffort: "low" },
   "claude-haiku-4.5": { maxTokens: 16384, reasoningEffort: "low" },
-  "gpt-5.1": { maxTokens: 16384, reasoningEffort: "none" },
+  "gpt-5.2": { maxTokens: 16384, reasoningEffort: "none" },
 };
 
 const DEFAULT_MODEL: ModelAlias = "gemini-2.5-flash-lite";
@@ -115,7 +115,7 @@ function usage(defaultModel: ModelAlias) {
       "  -e, --exclude <regex>  Additional file exclusion (repeatable)",
       "      --changed          Only lint changed files (vs default branch + uncommitted; just uncommitted on main)",
       "      --dry-run          List files and matching rules without calling the model",
-      `  -m, --model <alias>    Model alias: gpt-5-mini | gemini-2.5-flash-lite | gemini-2.5-flash | claude-haiku-4.5 | gpt-5.1 (default ${defaultModel})`,
+      `  -m, --model <alias>    Model alias: gpt-5-mini | gemini-2.5-flash-lite | gemini-2.5-flash | claude-haiku-4.5 | gpt-5.2 (default ${defaultModel})`,
       "      --effort <level>   Override reasoning effort: none | minimal | low | medium | high",
       "  -h, --help             Show this help message",
     ].join("\n"),
@@ -246,7 +246,7 @@ function parseArgs(argv: readonly string[], defaultModel: ModelAlias): ParsedArg
       if (!value) throw new CliError(`${arg} requires a value.`);
       if (!isModelAlias(value)) {
         throw new CliError(
-          "Invalid model alias. Allowed: gpt-5-mini, gemini-2.5-flash-lite, gemini-2.5-flash, claude-haiku-4.5, gpt-5.1.",
+          "Invalid model alias. Allowed: gpt-5-mini, gemini-2.5-flash-lite, gemini-2.5-flash, claude-haiku-4.5, gpt-5.2.",
         );
       }
       model = value;
@@ -257,7 +257,7 @@ function parseArgs(argv: readonly string[], defaultModel: ModelAlias): ParsedArg
       if (!value) throw new CliError("--model requires a value.");
       if (!isModelAlias(value)) {
         throw new CliError(
-          "Invalid model alias. Allowed: gpt-5-mini, gemini-2.5-flash-lite, gemini-2.5-flash, claude-haiku-4.5, gpt-5.1.",
+          "Invalid model alias. Allowed: gpt-5-mini, gemini-2.5-flash-lite, gemini-2.5-flash, claude-haiku-4.5, gpt-5.2.",
         );
       }
       model = value;

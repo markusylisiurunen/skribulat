@@ -48,7 +48,7 @@ All scripts live under the `scripts` folder (e.g., `scripts/commit.ts`).
   filters (`-i/--include`, `-e/--exclude`, repeatable); fragments and ad-hoc filters cannot be
   combined. `--dry-run` lists matched files with line/token counts instead of calling the model.
   `-m/--model` mirrors `oracle` (gemini-2.5-flash-lite default; gemini-2.5-flash, gemini-3-pro,
-  gpt-5.1, qwen3-32b also available). Each fragment/ad-hoc selection is sent as a separate LLM call
+  gpt-5.2, qwen3-32b also available). Each fragment/ad-hoc selection is sent as a separate LLM call
   with attached files matching its regex filters; responses are aggregated and printed with fragment
   headings. Running `skribulat grep fragments` lists fragments and matching file counts/line/token
   stats without calling the model. Fragment scans are capped at 50k lines or 1M characters;

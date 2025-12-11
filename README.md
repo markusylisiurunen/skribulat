@@ -35,7 +35,7 @@ Skribulat is a Deno-based command-line toolkit for AI-assisted repo workflows.
   fragment (or the ad-hoc selection) is searched in its own LLM call; fragments may declare
   regex-based `splits` to fan their files into multiple calls for smaller contexts, with any
   unmatched files automatically bundled into a final remainder split. Model aliases:
-  gemini-2.5-flash-lite (default), gemini-2.5-flash, gemini-3-pro, gpt-5.1, qwen3-32b.
+  gemini-2.5-flash-lite (default), gemini-2.5-flash, gemini-3-pro, gpt-5.2, qwen3-32b.
   `skribulat grep fragments` lists configured fragments, their splits (with file/line/char counts),
   and file/line/token stats (limited to 50k lines or 1M chars per split call).
 - `lint` – AI-powered linter with configurable rules. Rules are defined in `.skribulat/config.yaml`

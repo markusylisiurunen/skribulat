@@ -5,17 +5,17 @@ import { generateCompletion, unwrapJsonFence } from "../utils/llm.ts";
 import { loadPrompt, renderPrompt } from "../utils/prompts.ts";
 
 const ALLOWED_MODELS = [
-  "anthropic/claude-sonnet-4.5",
+  "anthropic/claude-opus-4.5",
   "google/gemini-2.5-flash-preview-09-2025",
-  "openai/gpt-5",
+  "openai/gpt-5.2",
 ] as const;
 type AllowedModel = (typeof ALLOWED_MODELS)[number];
-const DEFAULT_MODEL: AllowedModel = "anthropic/claude-sonnet-4.5";
+const DEFAULT_MODEL: AllowedModel = "anthropic/claude-opus-4.5";
 
 const MODEL_ALIASES: Record<string, AllowedModel> = {
-  "claude": "anthropic/claude-sonnet-4.5",
+  "claude": "anthropic/claude-opus-4.5",
   "gemini": "google/gemini-2.5-flash-preview-09-2025",
-  "gpt": "openai/gpt-5",
+  "gpt": "openai/gpt-5.2",
 };
 
 type ModelConfig = {
@@ -24,9 +24,9 @@ type ModelConfig = {
   reasoningMaxTokens?: number;
 };
 const MODEL_CONFIG: Record<AllowedModel, ModelConfig> = {
-  "anthropic/claude-sonnet-4.5": { maxTokens: 512 },
-  "google/gemini-2.5-flash-preview-09-2025": { maxTokens: 512, reasoningEffort: "low" },
-  "openai/gpt-5": { maxTokens: 512, reasoningEffort: "minimal" },
+  "anthropic/claude-opus-4.5": { maxTokens: 1024 },
+  "google/gemini-2.5-flash-preview-09-2025": { maxTokens: 1024, reasoningEffort: "low" },
+  "openai/gpt-5.2": { maxTokens: 1024, reasoningEffort: "minimal" },
 };
 
 function usage() {
