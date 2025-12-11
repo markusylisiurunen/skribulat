@@ -103,9 +103,11 @@ async function runCodexAgent(
   }
   const promptPath = "/tmp/skribulat-plan-prompt.txt";
   await copyPromptToContainer(prompt, runner, promptPath);
-  const command = buildCodexCommand(config, promptPath);
+  const resolvedModel = resolveCodexModel(config);
+  const resolvedReasoningEffort = resolveCodexReasoningEffort(config);
+  const command = buildCodexCommand(config, promptPath, resolvedModel, resolvedReasoningEffort);
   console.log(`${prefix()} user prompt:\n${prompt}`);
-  return await streamCodexOutput(runner, command, workingDir);
+  return await streamCodexOutput(runner, command, workingDir, resolvedModel);
 }
 
 function buildClaudeCodeCommand(config: AgentToolConfig, promptPath: string): string {
@@ -135,9 +137,20 @@ function normalizeClaudeModel(model?: string): string {
   );
 }
 
-function buildCodexCommand(config: AgentToolConfig, promptPath: string): string {
-  const model = config.model ?? "gpt-5.1-codex-max";
-  const reasoningEffort = config.reasoningEffort ?? "high";
+function resolveCodexModel(config: AgentToolConfig): string {
+  return config.model ?? "gpt-5.2";
+}
+
+function resolveCodexReasoningEffort(config: AgentToolConfig): string {
+  return config.reasoningEffort ?? "medium";
+}
+
+function buildCodexCommand(
+  config: AgentToolConfig,
+  promptPath: string,
+  model: string,
+  reasoningEffort: string,
+): string {
   const base = config.command && config.command.trim().length > 0 ? config.command.trim() : [
     "codex exec --json",
     "--dangerously-bypass-approvals-and-sandbox",
@@ -282,6 +295,7 @@ async function streamCodexOutput(
   runner: DockerRunner,
   command: string,
   workingDir: string,
+  resolvedModel: string,
 ): Promise<string> {
   console.log(`Running Codex agent with command: ${command}`);
   const stream = runner.streamBashCommand(command, { cwd: workingDir });
@@ -292,13 +306,13 @@ async function streamCodexOutput(
     const lines = buffered.split("\n");
     buffered = lines.pop() ?? "";
     for (const line of lines) {
-      processCodexLine(line, (message) => {
+      processCodexLine(line, resolvedModel, (message) => {
         if (message) finalMessage = message;
       });
     }
   }
   if (buffered.trim().length > 0) {
-    processCodexLine(buffered, (message) => {
+    processCodexLine(buffered, resolvedModel, (message) => {
       if (message) finalMessage = message;
     });
   }
@@ -308,11 +322,48 @@ async function streamCodexOutput(
   return finalMessage.trim();
 }
 
-function processCodexLine(line: string, onMessage: (message: string | null) => void) {
+type CodexCostRates = {
+  per1MInputTokens: number;
+  per1MCachedInputTokens: number;
+  per1MOutputTokens: number;
+  label: string;
+};
+
+function getCodexCostRates(modelLabel?: string): CodexCostRates {
+  const normalized = modelLabel?.trim().toLowerCase();
+  if (normalized && normalized.startsWith("gpt-5.1-codex-max")) {
+    return {
+      per1MInputTokens: 1.25,
+      per1MCachedInputTokens: 0.125, // 90% cache discount (10% of input rate)
+      per1MOutputTokens: 10.0,
+      label: "gpt-5.1-codex-max rates",
+    };
+  }
+  if (normalized && normalized.startsWith("gpt-5.2")) {
+    return {
+      per1MInputTokens: 1.75,
+      per1MCachedInputTokens: 0.175, // 90% cache discount (10% of input rate)
+      per1MOutputTokens: 14.0,
+      label: "gpt-5.2 rates",
+    };
+  }
+  return {
+    per1MInputTokens: 1.25,
+    per1MCachedInputTokens: 0.125, // 90% cache discount (10% of input rate)
+    per1MOutputTokens: 10.0,
+    label: "unknown model rates",
+  };
+}
+
+function processCodexLine(
+  line: string,
+  resolvedModel: string,
+  onMessage: (message: string | null) => void,
+) {
   if (line.trim().length === 0) return;
   try {
     const parsed = JSON.parse(line) as CodexEvent;
-    logCodexEvent(parsed);
+    logCodexEvent(parsed, resolvedModel);
     if (parsed.type === "item.completed" && parsed.item.type === "agent_message") {
       onMessage(parsed.item.text);
     } else {
@@ -324,7 +375,7 @@ function processCodexLine(line: string, onMessage: (message: string | null) => v
   }
 }
 
-function logCodexEvent(event: CodexEvent) {
+function logCodexEvent(event: CodexEvent, resolvedModel: string) {
   switch (event.type) {
     case "error":
       console.error(prefix(), "error:", event.message);
@@ -380,15 +431,17 @@ function logCodexEvent(event: CodexEvent) {
       console.log(prefix(), "usage:");
       console.log(`  input tokens: ${input_tokens} (cached: ${cached_input_tokens})`);
       console.log(`  output tokens: ${output_tokens}`);
-      // TODO: these are hardcoded for gpt-5.1-codex-max; make configurable
-      const per1MInputTokens = 1.25;
-      const per1MCachedInputTokens = 0.125;
-      const per1MOutputTokens = 10.0;
+      // TODO: make these configurable per model.
+      const modelLabel = resolvedModel ?? "unknown";
+      const { per1MInputTokens, per1MCachedInputTokens, per1MOutputTokens, label } =
+        getCodexCostRates(modelLabel);
       const estimatedCost = ((input_tokens - cached_input_tokens) / 1_000_000) *
           per1MInputTokens +
         (cached_input_tokens / 1_000_000) * per1MCachedInputTokens +
         (output_tokens / 1_000_000) * per1MOutputTokens;
-      console.log(`  estimated cost: $${estimatedCost.toFixed(6)}`);
+      console.log(
+        `  estimated cost (${label}; model=${modelLabel}): $${estimatedCost.toFixed(6)}`,
+      );
       break;
     }
     default:

@@ -37,7 +37,7 @@ function usage() {
     "Usage: skribulat work-on-pr [options]\n\n" +
       "Options:\n" +
       "  --agent <tool>       Agent tool to use (codex, claude-code, shell)\n" +
-      "  --model <name>       Model name (e.g., gpt-5.1-codex-max, haiku, sonnet, opus)\n" +
+      "  --model <name>       Model name (e.g., gpt-5.2, gpt-5.1-codex-max, haiku, sonnet, opus)\n" +
       "  --codex-auth <path>  Copy Codex auth.json into the agent container before running\n" +
       "  -h, --help           Show this help message",
   );

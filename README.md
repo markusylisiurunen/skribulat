@@ -145,8 +145,8 @@ lint:
 
 agent:
   tool: codex
-  model: gpt-5.1-codex-max
-  reasoning_effort: low
+  model: gpt-5.2
+  reasoning_effort: medium
   env:
     AGENT_PROMPT_STYLE: "codex-default" # toggle shared by every command
   env_passthrough:
@@ -192,6 +192,7 @@ so you can safely keep their values in `.env.secret` or your shell.
 
 CLI overrides sit on top of the YAML. Examples:
 
+- `deno run -A main.ts plan-issue --agent codex --model gpt-5.2`
 - `deno run -A main.ts plan-issue --agent codex --model gpt-5.1-codex-max`
 - `deno run -A main.ts work-on-issue --agent shell --model ""` (falls back to shell command from
   config)

@@ -14,7 +14,7 @@ function usage() {
       "Options:\n" +
       "  --issue <number>     Plan and work on a specific issue\n" +
       "  --agent <tool>       Agent tool to use for implementation (codex, claude-code, shell)\n" +
-      "  --model <name>       Model name passed to the work-on-issue step (e.g., haiku, sonnet, opus, gpt-5.1-codex-max)\n" +
+      "  --model <name>       Model name passed to the work-on-issue step (e.g., haiku, sonnet, opus, gpt-5.2, gpt-5.1-codex-max)\n" +
       "  --codex-auth <path>  Copy Codex auth.json into the agent container before running\n" +
       "  -h, --help           Show this help message",
   );
